@@ -9,19 +9,19 @@ def readme():
     with open('README.rst') as f:
         return f.read()
 
-setuptools.setup(name='brobox',
-    version='1.0',
-    description='BroBox API client',
+setuptools.setup(name="brobox-client",
+    version="1.0.2",
+    description="BroBox API client",
     long_description=readme(),
-    url='http://www.broala.com/brobox',
-    author='Broala',
-    author_email='support@broala.com',
-    license='BSD',
-    packages=['brobox'],
+    url="http://www.broala.com/brobox",
+    author="Broala",
+    author_email="support@broala.com",
+    license="BSD",
+    packages=["brobox"],
     zip_safe=False,
 
     scripts=[
-        'bin/brobox'
+        "bin/brobox"
         ],
 
     package_data={
@@ -31,11 +31,11 @@ setuptools.setup(name='brobox',
         },
 
     install_requires=[
-        'requests',
+        "requests",
     ],
 
     classifiers=[
-      'License :: OSI Approved :: BSD License',
-      'Programming Language :: Python :: 3 :: Only'
+      "License :: OSI Approved :: BSD License",
+      "Programming Language :: Python :: 3 :: Only"
     ],
 )

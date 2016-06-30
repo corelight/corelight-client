@@ -2,7 +2,7 @@
 .. _brobox-client:
 
 .. Version number is filled in automatically.
-.. |version| replace:: 1.0
+.. |version| replace:: 1.0.2
 
 ==========================
 BroBox Command Line Client
@@ -23,7 +23,8 @@ comprehensive RESTful API. See the BroBox documentation for an
 extended version of this client overview.
 
 :Version: |version|
-:Home: https://github.com/broala/brobox-client
+:Home: http://www.broala.com/brobox
+:GitHub: https://github.com/broala/brobox-client
 :Author: `Broala <https://www.broala.com>`_ <info@broala.com>
 
 License

@@ -1,4 +1,12 @@
 
+1.0.2-2 | 2016-07-21 17:47:32 -0700
+
+  * Adding support for new 'object-raw' schema.
+
+  * Bugfix: Support reading options with underscores from JSON input.
+
+  * Bugfix: Fix display of options' default arguments.
+
 1.0.2 | 2016-06-30 13:05:39 -0700
 
   * Initial PyPI release.

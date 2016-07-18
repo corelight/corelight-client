@@ -10,7 +10,7 @@ def readme():
         return f.read()
 
 setuptools.setup(name="brobox-client",
-    version="1.0.2",
+    version="1.0.2-2",
     description="BroBox API client",
     long_description=readme(),
     url="http://www.broala.com/brobox",

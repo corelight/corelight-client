@@ -274,13 +274,21 @@ class CommandArgumentParser(argparse.ArgumentParser):
 
         resource (dict): The resource meta dictionaries.
         """
-        summary = _wrap(_display(resource.get("summary", "")))
-        description = _wrap(_display(resource.get("description", "")))
+        self._resource = resource
 
-        if resource.get("requires-confirmation", True):
+    def finalizeResource(self):
+        """
+        Finalizes intializing the resources. This then also updates the usage
+        message.
+
+        resource (dict): The resource meta dictionaries.
+        """
+        summary = _wrap(_display(self._resource.get("summary", "")))
+        description = _wrap(_display(self._resource.get("description", "")))
+
+        if self._resource.get("requires-confirmation", True):
             description += " Before executing the operation, the command will request explicit confirmation."
 
-        self._resource = resource
         self.description = "{}\n\n{}".format(summary, description)
         self.epilog = self.help_epilog()
 
@@ -320,7 +328,7 @@ class CommandArgumentParser(argparse.ArgumentParser):
         """
         if not self._request_fields:
             self.add_argument("-r", "--read-stdin", action='store_true', default=False, dest="stdin",
-                              help="Read options as JSON from standard input.")
+                              help="Read data as JSON from standard input.")
 
         self._request_fields += [field]
 
@@ -330,7 +338,9 @@ class CommandArgumentParser(argparse.ArgumentParser):
 
         field (dict) The field meta dictionary.
         """
-        if not self._response_fields:
+        schema = self._resource.get("schema", None)
+
+        if not self._response_fields and (schema != "object-raw"):
             self.add_argument("-j", "--json", action='store_true', default=False, dest="json",
                               help="Output result in JSON.")
 
@@ -494,9 +504,12 @@ def addCommandParser(component_parser, command, resource):
 
     command_parser = command_parsers.add_parser(command, help=_display(summary), dest=command)
     command_parser.setParent(component_parser)
+    command_parser.setResource(resource)
+    command_parser.set_defaults(resource=resource)
 
     for p in resource.get("parameters", []):
         _buildArgument(command_parser, p)
+
 
     for f in resource.get("request-fields", []):
         command_parser.addRequestField(f)
@@ -507,8 +520,7 @@ def addCommandParser(component_parser, command, resource):
     for v in resource.get("variables", []):
         _buildArgument(command_parser, v)
 
-    command_parser.set_defaults(resource=resource)
-    command_parser.setResource(resource)
+    command_parser.finalizeResource()
 
     if command:
         command_parser.setPath(component_parser.path() + " " + command)

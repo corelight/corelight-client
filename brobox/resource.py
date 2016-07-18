@@ -66,6 +66,9 @@ def _prepareParameters(resource, key, values, params, files):
             except UnicodeDecodeError:
                 brobox.util.fatalError("The file {} contains non-UTF8 characters, which the parameter '{}' does not support".format(value, name))
 
+        elif type == "dictionary":
+            params[name] = value
+
         else:
             params[name] = str(value)
 
@@ -315,10 +318,10 @@ def _processResponse(session, resource, response, schema, cache, data):
         # Reissue the request with the URL we got.
         return process(session, resource, url)
 
-    if not response_fields:
-        return
-
-    hide = set([f["name"] for f in response_fields if not f.get("display", True)])
+    if response_fields:
+        hide = set([f["name"] for f in response_fields if not f.get("display", True)])
+    else:
+        hide = set()
 
     try:
         if session.arguments().json:
@@ -359,6 +362,10 @@ def _processResponse(session, resource, response, schema, cache, data):
         if robj:
             print()
             print(robj)
+
+    elif schema == "object-raw":
+        json.dump(data, fp=sys.stdout, indent=2, sort_keys=True)
+        print()
 
     else:
         # Just print the response strings for other schemas.

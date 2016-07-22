@@ -192,7 +192,8 @@ def process(session, resource, force_url=None):
         if session.arguments().stdin:
             try:
                 # Read additional options from standard input.
-                values.update(json.load(fp=sys.stdin))
+                d = json.load(fp=sys.stdin)
+                values.update({ k.replace("-", "_"): v for (k, v) in d.items() })
             except ValueError:
                 print("Cannot parse JSON on standard input.", file=sys.stderr)
                 sys.exit(1)

@@ -83,7 +83,7 @@ def _buildArgument(parser, param):
         "float": float,
         }.get(server_type, str)
 
-    if default_:
+    if not default_ is None:
         description +=" [Default: {}]".format(default_)
 
     if metavar:

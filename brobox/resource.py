@@ -97,6 +97,11 @@ def _renderObject(response_fields_by_name, obj, hide):
             l += [("", fmt_tuple(i)) for i in v[1:]]
             return l
 
+        if type == "string":
+            # Split multi-line strings for nicer rendering.
+            v = v.split("\n")
+            return [(k, v[0])] + [("", l) for l in v[1:]]
+
         if type == "time":
             v = time.strftime(_TimeFormat, time.localtime(v))
 

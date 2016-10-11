@@ -1,4 +1,10 @@
 
+1.0.2-4 | 2016-10-11 04:22:33 +0200
+
+  * Pretty printing multi-line string values in responses.
+
+  * Bugfix for boolean parameters.
+
 1.0.2-2 | 2016-07-21 17:47:32 -0700
 
   * Adding support for new 'object-raw' schema.

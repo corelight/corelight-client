@@ -48,8 +48,12 @@ def _prepareParameters(resource, key, values, params, files):
             type = "file"
             value = value[7:]
 
-        if type == "bool" or type == "flag":
+        if type == "flag":
             value = ("1" if value else "0")
+
+        if type == "bool":
+            # We pass this through, server will check and evaluate.
+            value = value.lower()
 
         if type == "file":
             try:

@@ -53,7 +53,7 @@ def _prepareParameters(resource, key, values, params, files):
 
         if type == "bool":
             # We pass this through, server will check and evaluate.
-            value = value.lower()
+            value = str(value).lower()
 
         if type == "file":
             try:
@@ -99,7 +99,7 @@ def _renderObject(response_fields_by_name, obj, hide):
 
         if type == "string":
             # Split multi-line strings for nicer rendering.
-            v = v.split("\n")
+            v = str(v).split("\n")
             return [(k, v[0])] + [("", l) for l in v[1:]]
 
         if type == "time":

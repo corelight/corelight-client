@@ -270,10 +270,15 @@ def _processResponse(session, resource, response, schema, cache, data):
 
         title = data.get("title", "")
         description = data.get("description", "")
+        diagnostics = data.get("diagnostics", "").strip()
+
         msg = _responseString(resource, status)
 
         if title and description:
             error = "Error: {}. {}".format(title, description)
+
+        elif title:
+            error = "Error: " + title
 
         elif description:
             error = "Error: " + description
@@ -288,6 +293,12 @@ def _processResponse(session, resource, response, schema, cache, data):
             error += "."
 
         print(error, file=sys.stderr)
+
+        if diagnostics:
+            print("\nDiagnostics:", file=sys.stderr)
+            for line in diagnostics.strip().split("\n"):
+                print("  " + line, file=sys.stderr)
+            print("", file=sys.stderr)
 
         sys.exit(1)
 

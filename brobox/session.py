@@ -17,7 +17,7 @@ import requests.packages.urllib3.connectionpool
 import brobox.util
 
 # The CA to validate default BroBox certificates with.
-_BroalaRoot = os.path.join(os.path.dirname(__file__), "certs/broala-root.pem")
+_CorelightRoot = os.path.join(os.path.dirname(__file__), "certs/corelight.pem")
 
 # Maximum API  version we support. If server sends a more recent one, this
 # client needs to be updated.
@@ -46,7 +46,7 @@ class _SSLAdapter(requests.adapters.HTTPAdapter):
         if not ssl_ca_cert:
             # Use Broala root CA and disable hostname verification.
             # We'll check the UID later.
-            ssl_ca_cert = _BroalaRoot
+            ssl_ca_cert = _CorelightRoot
             ssl_no_verify_hostname = True
 
         elif ssl_ca_cert == "system":
@@ -290,7 +290,8 @@ class Session:
                             cn = value
                             break
 
-                if cn != "{}.api.appliance.broala.com".format(uid):
+                if cn != "{}.api.appliance.broala.com".format(uid) and \
+                   cn != "{}.brobox.corelight.io".format(uid):
                     brobox.util.fatalError("device's UID does not match its certificate (certificate {} for device {})".format(cn, uid))
 
         if response.status_code == 401:

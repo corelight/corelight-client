@@ -26,7 +26,7 @@ setuptools.setup(name="brobox-client",
 
     package_data={
         "brobox": [
-            "certs/broala-root.pem"
+            "certs/corelight.pem"
             ]
         },
 

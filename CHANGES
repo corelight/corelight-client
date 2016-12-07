@@ -1,4 +1,12 @@
 
+1.0.2-8 | 2016-12-08 22:00:14 +0100
+
+  * Add support for display attribute to command line parameters.
+
+  * Adapt SSL validation to accept new Corelight default certificates.
+
+  * Extending rendering of results to print diagnostic messages.
+
 1.0.2-5 | 2016-10-17 21:26:34 -0700
 
   * Another bugfix for boolean parameters.

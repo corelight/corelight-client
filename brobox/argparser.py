@@ -1,7 +1,6 @@
 # Copyright (c) 2016, Broala. All rights reserved.
 #
 # See COPYING for license information.
-
 import argparse
 import re
 import sys
@@ -71,10 +70,16 @@ def _buildArgument(parser, param):
     default_ = param.get("default", None)
     metavar = param.get("metavar", None)
     description = param.get("description", "")
+    display = param.get("display", True)
+
+    if display:
+        help = _display(description)
+    else:
+        help = argparse.SUPPRESS
 
     if server_type == "flag":
         # Special-case: this doesn't take an argument.
-        parser.add_argument(name, action="store_true", default=False, help=_display(description))
+        parser.add_argument(name, action="store_true", default=False, help=help)
         return
 
     type = {
@@ -84,14 +89,14 @@ def _buildArgument(parser, param):
         }.get(server_type, str)
 
     if not default_ is None:
-        description +=" [Default: {}]".format(default_)
+        help +=" [Default: {}]".format(default_)
 
     if metavar:
         metavar = "<{}>".format(metavar)
     else:
         metavar = "<{}>".format(server_type)
 
-    parser.add_argument(name, type=type, required=required, metavar=metavar, help=_display(description), default=default_)
+    parser.add_argument(name, type=type, required=required, metavar=metavar, help=help, default=default_)
 
 class ComponentArgumentParser(argparse.ArgumentParser):
     """

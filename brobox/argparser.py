@@ -1,4 +1,4 @@
-# Copyright (c) 2016, Broala. All rights reserved.
+# Copyright (c) 2016, Corelight. All rights reserved.
 #
 # See COPYING for license information.
 import argparse
@@ -434,7 +434,7 @@ def createParser(config):
     parser.add_argument("-p", "--password", action="store", dest="password", default=password,
                         help="Password for authentication.")
     parser.add_argument("--ssl-ca-cert", action="store", dest="ssl_ca_cert", default=ssl_ca_cert,
-                        help="Path to CA certificate(s) for verifying device identity. Defaults to Broala's internal CA. Specify 'system' for system's root store.")
+                        help="Path to CA certificate(s) for verifying device identity. Defaults to Corelight's internal CA. Specify 'system' for system's root store.")
     parser.add_argument("--ssl-no-verify-certificate", action="store_true", dest="ssl_no_verify_certificate", default=ssl_no_verify_certificate,
                         help="Do not verify device's certificate.")
     parser.add_argument("--ssl-no-verify-hostname", action="store_true", dest="ssl_no_verify_hostname", default=ssl_no_verify_hostname,

@@ -2,7 +2,7 @@
 .. _brobox-client:
 
 .. Version number is filled in automatically.
-.. |version| replace:: 1.0.2-8
+.. |version| replace:: 1.0.3
 
 ==========================
 BroBox Command Line Client
@@ -14,18 +14,18 @@ Overview
 ========
 
 This tool provides a command-line client for `BroBox One
-<https://www.broala.com/brobox.html>`_, a `Bro <https://www.bro.org>`_
-appliance engineered from the ground up by `Bro's creators
-<https://www.broala.com>`_ to transform network traffic into
+<https://www.corelight.com>`_, a `Bro <https://www.bro.org>`_
+appliance engineered from the ground up by Bro's creators
+to transform network traffic into
 high-fidelity data for your analytics pipeline. Using the command-line
 client, you can configure and control a BroBox remotely through its
 comprehensive RESTful API. See the BroBox documentation for an
 extended version of this client overview.
 
 :Version: |version|
-:Home: http://www.broala.com/brobox
+:Home: http://www.corelight.com
 :GitHub: https://github.com/broala/brobox-client
-:Author: `Broala <https://www.broala.com>`_ <info@broala.com>
+:Author: `Corelight, Inc. <https://www.corelight.com>`_ <info@corelight.com>
 
 License
 =======

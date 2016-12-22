@@ -10,12 +10,12 @@ def readme():
         return f.read()
 
 setuptools.setup(name="brobox-client",
-    version="fa120e9",
+    version="1.0.3",
     description="BroBox API client",
     long_description=readme(),
-    url="http://www.broala.com/brobox",
-    author="Broala",
-    author_email="support@broala.com",
+    url="https://github.com/broala/brobox-client",
+    author="Corelight",
+    author_email="info@corelight.com",
     license="BSD",
     packages=["brobox"],
     zip_safe=False,

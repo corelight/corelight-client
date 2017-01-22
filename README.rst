@@ -24,7 +24,7 @@ extended version of this client overview.
 
 :Version: |version|
 :Home: http://www.corelight.com
-:GitHub: https://github.com/broala/brobox-client
+:GitHub: https://github.com/corelight/brobox-client
 :Author: `Corelight, Inc. <https://www.corelight.com>`_ <info@corelight.com>
 
 License
@@ -46,7 +46,7 @@ Index::
 
 Alternatively, you can install the latest version from GitHub::
 
-    # git clone https://github.com/broala/brobox-client
+    # git clone https://github.com/corelight/brobox-client
     # cd brobox-client
     # python3 setup.py install
 

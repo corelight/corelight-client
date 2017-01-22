@@ -1,4 +1,4 @@
-# Copyright (c) 2016, Broala. All rights reserved.
+# Copyright (c) 2017, Corelight. All rights reserved.
 #
 # See COPYING for license information.
 
@@ -44,7 +44,7 @@ class _SSLAdapter(requests.adapters.HTTPAdapter):
             conn.cert_reqs = ssl.CERT_REQUIRED
 
         if not ssl_ca_cert:
-            # Use Broala root CA and disable hostname verification.
+            # Use Corelight root CA and disable hostname verification.
             # We'll check the UID later.
             ssl_ca_cert = _CorelightRoot
             ssl_no_verify_hostname = True
@@ -278,7 +278,11 @@ class Session:
                     brobox.util.debug("| "+ line.decode("utf8"), level=debug_level)
 
         if cert and not self._args.ssl_ca_cert:
-            uid = response.headers.get("X-BROALA-UID", None)
+            uid = response.headers.get("X-CORELIGHT-UID", None)
+
+            if not uid:
+                # Fallback for legacy systems.
+                uid = response.headers.get("X-BROALA-UID", None)
 
             if uid:
                 # Using default device certificate. Check UID against headers.

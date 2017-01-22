@@ -1,4 +1,8 @@
 
+1.0.4 | 2017-01-22 03:22:34 +0100
+
+  * Moving from Broala to Corelight GitHub account.
+
 1.0.3 | 2016-12-21 17:33:16 -0800
 
   * Add support for 'display' attribute to command line parameters.

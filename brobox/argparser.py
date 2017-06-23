@@ -10,14 +10,14 @@ import brobox.util
 
 def printHelp(self, parser, namespace, values=None, option_string=None): # pylint: disable=unused-argument
     args = vars(namespace)
-    command = args.get("command", None)
+    has_subcommand = ("command" in args or "component" in args)
 
     if parser.parent():
         path = parser.path()
     else:
         path = None
 
-    usage = _formatUsage(path, command != None)
+    usage = _formatUsage(path, has_subcommand)
 
     help = parser.format_help()
     help = re.sub("usage:.*", "Usage: " + usage, help)
@@ -52,11 +52,11 @@ def _display(txt):
     txt = txt.replace("...", "\u2026")
     return txt
 
-def _formatUsage(path=None, is_command=False):
+def _formatUsage(path, has_subcommand):
     if not path:
         path = "<command>"
 
-    addl = (" <subcommand>" if not is_command else "")
+    addl = (" <subcommand>" if has_subcommand else "")
     return "{} [<global options>] {}{} [<options>]".format(brobox.NAME, path.strip(), addl)
 
 def _buildArgument(parser, param):
@@ -195,7 +195,7 @@ class ComponentArgumentParser(argparse.ArgumentParser):
 
     def print_help(self, file=None):
         """Overridden from base class."""
-        usage = _formatUsage()
+        usage = _formatUsage(None, True)
         help = self.format_help()
         help = re.sub("usage:.*", "Usage: " + usage, help)
         help += "\n" + self.help_epilog() + "\n"

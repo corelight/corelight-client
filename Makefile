@@ -1,4 +1,6 @@
 
+all:
+
 distclean:
 	rm -rf build dist brobox.egg-info
 

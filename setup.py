@@ -10,7 +10,7 @@ def readme():
         return f.read()
 
 setuptools.setup(name="brobox-client",
-    version="1.0.4-1",
+    version="1.0.5",
     description="BroBox API client",
     long_description=readme(),
     url="https://github.com/corelight/brobox-client",
@@ -31,7 +31,9 @@ setuptools.setup(name="brobox-client",
         },
 
     install_requires=[
-        "requests",
+        # 2.17.{1,2} have a problem with urrllib3:
+        # https://github.com/requests/requests/issues/4104
+        "requests>=2.9.1,!=2.17.1,!=2.17.2",
     ],
 
     classifiers=[

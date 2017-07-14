@@ -2,7 +2,7 @@
 .. _brobox-client:
 
 .. Version number is filled in automatically.
-.. |version| replace:: 1.0.4-1
+.. |version| replace:: 1.0.5
 
 ==========================
 BroBox Command Line Client

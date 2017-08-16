@@ -21,7 +21,8 @@ setuptools.setup(name="brobox-client",
     zip_safe=False,
 
     scripts=[
-        "bin/brobox"
+        "bin/brobox",
+        "bin/bro-pkg-bundle"
         ],
 
     package_data={

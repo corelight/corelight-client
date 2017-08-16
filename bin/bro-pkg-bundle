@@ -1,0 +1,120 @@
+#! /usr/bin/env bash
+#
+# Copyright (c) 2017, Corelight. All rights reserved. See COPYING for license information.
+#
+# This ia  wrapper script around bro-pkg that turns one or more Bro script
+# modules into a bundle for the Bro package manager. To use the script, put
+# your Bro modules into subdirectories, say A, B, C. Then run:
+#
+#     bro-pkg-bundle --bundle my-scripts.bundle A B C
+#
+# This will produce a file "my-scripts.bundle" that the Bro Package Manager's
+# "unbundle" command can process to install the scripts into your Bro
+# installation.
+#
+
+function usage
+{
+    echo "$(basename $0) --bundle <bundle-file> <directories with Bro script modules>"
+    exit 1
+}
+
+# Turn a module directory into a git repository and install through bro-pkg.
+function install_one
+{
+    module=$1
+
+    git_cfg="-c 'user.name=$(whoami)' -c 'user.email=no@email.address'"
+    git=${tmp}/$(basename ${module})
+    rm -rf ${git}
+    mkdir -p ${git}
+    cp -a ${module}/* ${git} 2>/dev/null
+    if [ ! -f ${git}/bro-pkg.meta ]; then
+        echo "[package]" > ${git}/bro-pkg.meta
+        echo "test_command = /bin/true" >> ${git}/bro-pkg.meta
+    fi
+    (cd ${git} && git init && git add . && eval git ${git_cfg} commit -m "'Initializing repository.'")
+    (cd ${tmp} && bro-pkg install --force $(basename ${module}))
+}
+
+function cleanup
+{
+    rm -rf ${tmp}
+}
+
+# Create a temporary working directory.
+tmp=/tmp/$(basename $0).$$.tmp
+trap cleanup EXIT
+rm -rf ${tmp}
+mkdir -p ${tmp}
+
+bundle=""
+
+while [ $# -gt 0 ]; do
+    case $1 in
+        --bundle)
+           bundle=$2
+           shift
+           shift
+           ;;
+
+        --*)
+           usage
+           ;;
+
+        *)
+           break
+    esac
+done
+
+test "${bundle}" != "" || usage
+test $# -gt 0 || usage
+
+modules=$@
+
+for dep in bro-pkg git; do
+    if ! type -P ${dep} >/dev/null; then
+        echo "Cannot find ${dep}, please install that first and make sure it's in PATH."
+        exit 1
+    fi
+done
+
+
+bpkg_version=$(bro-pkg --version | cut -d ' ' -f 2 | sed 's/-.*$//g')
+v=(${bpkg_version//./ })
+if [ -z "${v[2]}" ]; then
+    bpkg_version="${v[0]}${v[1]}0"
+else
+    bpkg_version="${v[0]}${v[1]}${v[2]}"
+fi
+
+if (( "${bpkg_version}" < 104 )); then
+    echo "Need at least bro-pkg version 1.0.4."
+    exit 1
+fi
+
+for module in ${modules}; do
+    if [ ! -d ${module} ]; then
+        echo "'${module}' does not exist."
+        exit 1
+    fi
+done
+
+# Create a bro-pkg configuration file.
+config=${tmp}/config
+
+cat >${config} <<EOF
+[paths]
+state_dir  = ${tmp}/bro-pkg
+script_dir = ${tmp}/bro-pkg/scripts
+plugin_dir = ${tmp}/bro-pkg/plugins
+EOF
+
+export BRO_PKG_CONFIG_FILE=${config}
+
+for module in ${modules}; do
+    install_one ${module}
+done
+
+echo
+bro-pkg bundle --force ${bundle}

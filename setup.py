@@ -3,30 +3,32 @@ import sys
 import setuptools
 
 if sys.version_info[0] != 3 or sys.version_info[1] < 4:
-    sys.exit("brobox currently requires Python >= 3.4")
+    sys.exit("corelight-client currently requires Python >= 3.4")
 
 def readme():
     with open('README.rst') as f:
         return f.read()
 
-setuptools.setup(name="brobox-client",
-    version="1.0.5",
-    description="BroBox API client",
+setuptools.setup(name="corelight-client",
+    version="1.0.5-4",
+    description="Corelight API client",
     long_description=readme(),
-    url="https://github.com/corelight/brobox-client",
+    url="https://github.com/corelight/corelight-client",
     author="Corelight",
     author_email="info@corelight.com",
     license="BSD",
-    packages=["brobox"],
+    packages=["client"],
     zip_safe=False,
 
     scripts=[
-        "bin/brobox",
-        "bin/bro-pkg-bundle"
-        ],
+        "bin/corelight-client",
+        "bin/bro-pkg-bundle",
+        # Legacy script, to be removed.
+        "bin/brobox"
+       ],
 
     package_data={
-        "brobox": [
+        "client": [
             "certs/corelight.pem"
             ]
         },

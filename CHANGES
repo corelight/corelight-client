@@ -1,4 +1,15 @@
 
+1.0.5-4 | 2017-08-24 08:32:34 -0700
+
+  * Renaming BroBox to Corelight Sensor:
+        - The "brobox" script becomes "corelight-client".
+        - "~/.broboxrc" becomes "~/.corelight-client.rc".
+        - The configuration option "brobox" becomes "device".
+        - The command-line option "--brobox" becomes "--device" (short version remains "-B").
+        - The environment variable BROBOX becomes CORELIGHT_DEVICE.
+
+  * Adding bro-pkg-bundle to distribution.
+
 1.0.5 | 2017-07-14 12:24:35 -0700
 
   * Adding version requirement for 'requests' dependency.

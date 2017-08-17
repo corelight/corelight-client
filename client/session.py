@@ -14,9 +14,9 @@ import requests.packages.urllib3
 import requests.packages.urllib3.poolmanager
 import requests.packages.urllib3.connectionpool
 
-import brobox.util
+import client.util
 
-# The CA to validate default BroBox certificates with.
+# The CA to validate default Corelight certificates with.
 _CorelightRoot = os.path.join(os.path.dirname(__file__), "certs/corelight.pem")
 
 # Maximum API  version we support. If server sends a more recent one, this
@@ -91,7 +91,7 @@ class _HTTPSConnectionPool(requests.packages.urllib3.connectionpool.HTTPSConnect
 requests.packages.urllib3.poolmanager.pool_classes_by_scheme["https"] = _HTTPSConnectionPool
 
 class Session:
-    """Class issueing HTTP requests to the BroBox device."""
+    """Class issueing HTTP requests to the Corelight Sensor device."""
     # The joint requests.Session object used for all requests. Created on first use.
     _RequestsSession = None
 
@@ -123,10 +123,10 @@ class Session:
 
     def retrieveResource(self, url, **kwargs):
         """
-        Retrieves a given URL through a ``GET`` request from a BroBox. The
+        Retrieves a given URL through a ``GET`` request from a Corelight Sensor. The
         response' body is expected to be in JSON format and decoded. The
         response is also expected to come with ``schema``, ``version``,
-        and ``cache`` parameters in the ``Content-Type``, per BroBox
+        and ``cache`` parameters in the ``Content-Type``, per Corelight Sensor
         API specification.
 
         If the body is not JSON, or cannot be decoded as such the function abort
@@ -136,7 +136,7 @@ class Session:
         couldn't be retrieved.
 
         This also verifies that the response's format, and version value,
-        conforms to the BroBox API specification as we would expect. The
+        conforms to the Corelight API specification as we would expect. The
         function aborts otherwise.
 
         url (str): The full URL to retrieve.
@@ -164,7 +164,7 @@ class Session:
                 data = response.json()
             except:
                 if success:
-                    brobox.util.fatalError("Cannot decode JSON body of response", url)
+                    client.util.fatalError("Cannot decode JSON body of response", url)
                 else:
                     return (response, "", "", {})
 
@@ -173,7 +173,7 @@ class Session:
 
         else:
             if success:
-                brobox.util.fatalError("Received non-JSON response from BroBox", url)
+                client.util.fatalError("Received non-JSON response from Corelight Sensor", url)
             else:
                 return (response, "", "", {})
 
@@ -183,16 +183,16 @@ class Session:
             cache = params["cache"]
         except KeyError:
             if success:
-                brobox.util.fatalError("BroBox response did not include all required API parameters", url)
+                client.util.fatalError("Corelight Sensor response did not include all required API parameters", url)
             else:
                 return (response, "", "", data)
 
         try:
             if int(version) > _Version:
-                brobox.util.fatalError("Your current {} client does not support the device's version, please update the client.".format(brobox.NAME))
+                client.util.fatalError("Your current {} client does not support the device's version, please update the client.".format(client.NAME))
         except ValueError:
             # This remains a fatal error even if request failed.
-            brobox.util.fatalError("Cannot parse version in response.", url)
+            client.util.fatalError("Cannot parse version in response.", url)
 
         return (response, schema, cache, data)
 
@@ -224,58 +224,58 @@ class Session:
         req = requests.Request(url=url, headers=self._requestHeaders(), auth=auth, **kwargs)
         prepared = Session._RequestsSession.prepare_request(req)
 
-        if brobox.util.debugLevel():
-            brobox.util.debug("== {} {}".format(prepared.method, prepared.url), level=debug_level)
+        if client.util.debugLevel():
+            client.util.debug("== {} {}".format(prepared.method, prepared.url), level=debug_level)
 
             for (k, v) in prepared.headers.items():
-                brobox.util.debug("| {}: {}".format(k, v), level=debug_level)
+                client.util.debug("| {}: {}".format(k, v), level=debug_level)
 
-            brobox.util.debug("| ", level=debug_level)
+            client.util.debug("| ", level=debug_level)
 
             if prepared.body:
                 for line in prepared.body.splitlines():
                     if isinstance(line, bytes):
                         line = line.decode("utf8", "ignore")
 
-                    brobox.util.debug("| " + line, level=debug_level)
+                    client.util.debug("| " + line, level=debug_level)
 
         try:
             response = Session._RequestsSession.send(prepared)
 
         except requests.exceptions.SSLError as e:
             u = urllib.parse.urlparse(url)
-            brobox.util.fatalError("cannot connect to BroBox at {}. {}".format(u.netloc, e))
+            client.util.fatalError("cannot connect to Corelight Sensor at {}. {}".format(u.netloc, e))
 
         except requests.ConnectionError as e:
             u = urllib.parse.urlparse(url)
-            brobox.util.fatalError("cannot connect to BroBox at {}".format(u.netloc))
+            client.util.fatalError("cannot connect to Corelight Sensor at {}".format(u.netloc))
 
         except Exception as e:
-            brobox.util.fatalError("cannot retrieve URL from BroBox", e)
+            client.util.fatalError("cannot retrieve URL from Corelight Sensor", e)
 
         # Available only for SSL connections.
         try:
             cert = response.peer_certificate
 
-            if brobox.util.debugLevel():
+            if client.util.debugLevel():
                 ppcert = ", ".join(["{}: {}".format(k, v) for sub in cert.get("subject", ()) for (k, v) in sub])
-                brobox.util.debug("+ " + ppcert, level=debug_level)
+                client.util.debug("+ " + ppcert, level=debug_level)
 
         except AttributeError:
             assert urllib.parse.urlparse(url).scheme.lower() != "https"
             cert = None
 
-        if brobox.util.debugLevel():
-            brobox.util.debug("== {} {}".format(response.status_code, response.reason), level=debug_level)
+        if client.util.debugLevel():
+            client.util.debug("== {} {}".format(response.status_code, response.reason), level=debug_level)
 
             for (k, v) in response.headers.items():
-                brobox.util.debug("| {}: {}".format(k, v), level=debug_level)
+                client.util.debug("| {}: {}".format(k, v), level=debug_level)
 
-            brobox.util.debug("| ", level=debug_level)
+            client.util.debug("| ", level=debug_level)
 
             if response.content:
                 for line in response.content.splitlines():
-                    brobox.util.debug("| "+ line.decode("utf8"), level=debug_level)
+                    client.util.debug("| "+ line.decode("utf8"), level=debug_level)
 
         if cert and not self._args.ssl_ca_cert:
             uid = response.headers.get("X-CORELIGHT-UID", None)
@@ -295,14 +295,15 @@ class Session:
                             break
 
                 if cn != "{}.api.appliance.broala.com".format(uid) and \
-                   cn != "{}.brobox.corelight.io".format(uid):
-                    brobox.util.fatalError("device's UID does not match its certificate (certificate {} for device {})".format(cn, uid))
+                   cn != "{}.brobox.corelight.io".format(uid) and \
+                   cn != "{}.device.corelight.com".format(uid):
+                    client.util.fatalError("device's UID does not match its certificate (certificate {} for device {})".format(cn, uid))
 
         if response.status_code == 401:
-            brobox.util.fatalError("Request not authorized. Did you specify a correct username and password?")
+            client.util.fatalError("Request not authorized. Did you specify a correct username and password?")
 
         if response.status_code == 403:
-            brobox.util.fatalError("Operation forbidden. You do not have the needed access right.")
+            client.util.fatalError("Operation forbidden. You do not have the needed access right.")
 
         return response
 
@@ -329,7 +330,7 @@ class Session:
             if ignore_errors:
                 return (None, None, None)
 
-            brobox.util.fatalError("Response without Content-Type header")
+            client.util.fatalError("Response without Content-Type header")
 
         try:
             m = ct.split(";")
@@ -347,7 +348,7 @@ class Session:
             if ignore_errors:
                 return (None, None, None)
 
-            brobox.util.fatalError("Cannot parse Content-Type", ct)
+            client.util.fatalError("Cannot parse Content-Type", ct)
 
     def _requestHeaders(self):
         """
@@ -355,6 +356,6 @@ class Session:
         outgoing HTTP requests.
         """
         return {
-            "User-Agent": "{} v{}".format(brobox.NAME, brobox.VERSION),
+            "User-Agent": "{} v{}".format(client.NAME, client.VERSION),
             "Accept": "application/json"
             }

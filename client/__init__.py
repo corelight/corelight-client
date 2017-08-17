@@ -2,5 +2,5 @@
 #
 # See COPYING for license information.
 
-NAME    = "brobox"
-VERSION = "1.0.5"
+NAME    = "corelight-client"
+VERSION = "1.0.5-4"

@@ -1,0 +1,188 @@
+#! /usr/bin/env python3
+#
+# Copyright (c) 2017, Corelight. All rights reserved.
+#
+# See COPYING for license information.
+
+import os
+import os.path
+import sys
+import urllib.parse
+
+import client.argparser
+import client.configuration
+import client.meta
+import client.resource
+import client.session
+import client.util
+
+# URL to connect to.
+BaseURL = "{scheme}://{netloc}/api/"
+
+# User configuration file.
+ConfigFile = os.path.expanduser("~/.corelight-client.rc")
+
+# Legacy configuration file, to be removed.
+ConfigFileLegacy = os.path.expanduser("~/.broboxrc")
+
+# Directory where to store persistent state.
+StateDir = os.path.expanduser("~/.corelight-client")
+
+# Legacy directory where to store persistent state.
+StateDirLegacy = os.path.expanduser("~/.brobox")
+
+# File where to store credentials if requested.
+CredentialsFile = os.path.join(StateDir, "credentials")
+
+# Legacy file where to store credentials if requested.
+CredentialsFileLegacy = os.path.join(StateDirLegacy, "credentials")
+
+# Base bath where to cache meta information.
+MetaCacheFileBase = os.path.join(StateDir, "cache")
+
+# Create a copy of the arguments that excludes any potential --help argument.
+argv_pass1 = [a for a in sys.argv[1:] if a != "-h" and a != "--help"]
+argv_pass2 = sys.argv[1:]
+
+corelight_device = os.environ.get("CORELIGHT_DEVICE", None)
+
+# Legacy BroBox support. To be removed.
+if "BROBOX" in os.environ and corelight_device is None:
+    print("""Note: The environment variable BROBOX has been renamed to CORELIGHT_DEVICE.
+      The old name is deprecated and support will be removed in a future version.
+""", file=sys.stderr)
+    corelight_device = os.environ.get("BROBOX", None)
+
+config = {
+    "device": corelight_device
+}
+
+# Legacy BroBox support. To be removed.
+if os.path.exists(CredentialsFileLegacy) and not os.path.exists(CredentialsFile):
+    print("""Note: The credentials file {} is deprecated and support will be
+      removed in a future version.  Please use {} instead."""
+        .format(CredentialsFileLegacy, CredentialsFile), file=sys.stderr)
+    client.configuration.read(CredentialsFileLegacy, config)
+else:
+    client.configuration.read(CredentialsFile, config)
+
+# Legacy BroBox support. To be removed.
+if os.path.exists(ConfigFileLegacy):
+    print("""Note: Please rename {} to {}.
+      The old name is deprecated and support will be removed in a future version.
+""".format(ConfigFileLegacy, ConfigFile),
+      file=sys.stderr)
+    client.configuration.read(ConfigFileLegacy, config)
+
+client.configuration.read(ConfigFile, config)
+
+# Build initial bare-bones argument parser without any Corelight Sensor meta information.
+parser = client.argparser.createParser(config)
+(args, remaining) = parser.parse_known_args(argv_pass1)
+
+# Legacy BroBox support. To be removed.
+if not args.device and args.brobox:
+    print("""Note: Please use --device instead of --brobox.
+      The old option is deprecated and support will be removed in a future version.
+""", file=sys.stderr)
+    args.device = args.brobox
+
+if args.version:
+    print("{} {}".format(client.NAME, client.VERSION))
+    sys.exit(0)
+
+if not args.device:
+    if "-h" in sys.argv or "--help" in sys.argv or "help" in sys.argv:
+        parser.print_help()
+    else:
+        print("You need to specify the address of your Corelight Sensor.")
+
+    sys.exit(1)
+
+client.util.enableDebug(args.debug_level)
+
+if "://" in args.device:
+    base = urllib.parse.urlparse(args.device)
+    scheme = base.scheme
+    url = BaseURL.format(scheme=base.scheme, netloc=base.netloc)
+else:
+    scheme = "https"
+    url = BaseURL.format(scheme="https", netloc=args.device)
+
+# Create directory for persistent state.
+if not os.path.isdir(StateDir):
+    try:
+        os.mkdir(StateDir)
+        os.chmod(StateDir, 0o700)
+    except IOError as e:
+        client.util.fatalError("cannot create directory '{}'".format(StateDir), e)
+
+# Prompt for missing credentials if running interactively.
+new_credentials = 0
+
+if scheme == "https" and sys.stdin.isatty() and sys.stdout.isatty():
+    if not args.user:
+        args.user = client.util.getInput("User name")
+
+        if args.user:
+            new_credentials += 1
+            argv_pass2 = ["--user", args.user] + argv_pass2
+
+    if not args.password:
+        args.password = client.util.getInput("Password", password=True)
+
+        if args.password:
+            new_credentials += 1
+            argv_pass2 = ["--password", args.password] + argv_pass2
+
+# Retrieve meta information from device.
+session = client.session.Session(args)
+
+if args.cache:
+    cache = args.cache
+else:
+    cache = (MetaCacheFileBase + "_" + url.replace("://", "_").replace("/", "_").replace(":", "_").lower())
+
+    if cache.endswith("_"):
+        cache = cache[:-1]
+
+meta = client.meta.load(session, url, cache)
+meta.save(cache)
+
+# Access worked, offer to save crendentials if entered interactively.
+if new_credentials > 0 and (args.user and args.password):
+    if client.util.getInput("Save credentials? (yes/no)") == "yes":
+        try:
+            with open(CredentialsFile, "w") as fp:
+                print("user={}".format(args.user), file=fp)
+                print("password={}".format(args.password), file=fp)
+            fp.close()
+
+            os.chmod(CredentialsFile, 0o600)
+            print("Credentials saved to {}".format(CredentialsFile))
+
+        except IOError as e:
+            client.util.fatalError("cannot save credentials to '{}'".format(CredentialsFile), e)
+
+# Now extend the argument parser with all the meta information.
+client.argparser.populateParser(parser, meta)
+
+# Reparse command line arguments.
+args = parser.parse_args(argv_pass2)
+
+session.setArguments(args)
+
+try:
+    # A "help" command.
+    help = args.parser_for_help
+    client.argparser.printHelp(None, help, args)
+except AttributeError:
+    pass
+
+try:
+    resource = args.resource
+except AttributeError:
+    print("No command given. Use --help to see list.")
+    sys.exit(1)
+
+client.resource.process(session, resource)

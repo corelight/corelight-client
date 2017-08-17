@@ -4,7 +4,7 @@
 
 import os
 
-import brobox.util
+import client.util
 
 def read(path, config):
     """
@@ -30,15 +30,15 @@ def read(path, config):
             try:
                 (k, v) = (m.strip() for m in line.split("="))
             except ValueError:
-                brobox.util.fatalError("cannot parse line {} in configuration file".format(cnt), path)
+                client.util.fatalError("cannot parse line {} in configuration file".format(cnt), path)
 
-            for option in ("brobox", "user", "password", "ssl-ca-cert", "ssl-no-verify-hostname", "ssl-no-verify-certificate"):
+            for option in ("device", "user", "password", "ssl-ca-cert", "ssl-no-verify-hostname", "ssl-no-verify-certificate"):
                 if k.lower() == option:
                     config[option] = v
                     break
 
             else:
-                brobox.util.fatalError("unknown option '{}' in configuration file".format(k), path)
+                client.util.fatalError("unknown option '{}' in configuration file".format(k), path)
 
     except IOError as e:
-        brobox.util.fatalError("cannot read configuration file: {}".format(e), path)
+        client.util.fatalError("cannot read configuration file: {}".format(e), path)

@@ -4,11 +4,11 @@
 
 import json
 
-import brobox.util
+import client.util
 
 class Meta:
     """
-    A class storing a BroBox' meta information, mapping available URLs,
+    A class storing a Corelight Sensor's meta information, mapping available URLs,
     to their corresponding API meta data.
     """
     def __init__(self, cache):
@@ -43,7 +43,7 @@ class Meta:
 
         url (string): The URL to index on.
 
-        meta (dict): A dictionary with BroBox meta data for the URL
+        meta (dict): A dictionary with Corelight Sensor meta data for the URL
         """
         self._resources[url] = meta
 
@@ -86,19 +86,19 @@ class Meta:
 
 def load(session, base_url, force=False, cache_file=None):
     """
-    Downloads the complete set of meta information from a BroBox.
+    Downloads the complete set of meta information from a Corelight Sensor.
 
-    session (brobox.session.Session): The session object to use for
+    session (client.session.Session): The session object to use for
     requests.
 
-    base_url (string): The base URL of the BroBox's API interface.
+    base_url (string): The base URL of the Corelight Sensor's API interface.
 
     cache_file (str): File where to load cached meta data from if it exists.
     """
     (_, schema, cache, data) = session.retrieveResource(base_url, debug_level=2)
 
     if schema != "index":
-        brobox.util.fatalError("URL not pointing to API base address", base_url)
+        client.util.fatalError("URL not pointing to API base address", base_url)
 
     if cache_file and not force:
         cache_file = Meta.load(cache_file)
@@ -128,7 +128,7 @@ def _loadResource(session, meta, url):
 def _parseLinks(response, rel):
     """
     Parses an HTTP response's ``Link`` headers of a given relation, according
-    to the BroBox API specification.
+    to the Corelight API specification.
 
     response (requests.Response): The response to parse the ``Link`` headers
     out of.

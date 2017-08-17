@@ -9,21 +9,21 @@ import os.path
 import sys
 import urllib.parse
 
-import brobox.argparser
-import brobox.configuration
-import brobox.meta
-import brobox.resource
-import brobox.session
-import brobox.util
+import client.argparser
+import client.configuration
+import client.meta
+import client.resource
+import client.session
+import client.util
 
 # URL to connect to.
 BaseURL = "{scheme}://{netloc}/api/"
 
 # User configuration file.
-ConfigFile = os.path.expanduser("~/.broboxrc")
+ConfigFile = os.path.expanduser("~/.corelight-client.rc")
 
 # Directory where to store persistent state.
-StateDir = os.path.expanduser("~/.brobox")
+StateDir = os.path.expanduser("~/.corelight-client")
 
 # File where to store credentials if requested.
 CredentialsFile = os.path.join(StateDir, "credentials")
@@ -36,37 +36,37 @@ argv_pass1 = [a for a in sys.argv[1:] if a != "-h" and a != "--help"]
 argv_pass2 = sys.argv[1:]
 
 config = {
-    "brobox": os.environ.get("BROBOX", None)
+    "device": os.environ.get("CORELIGHT_DEVICE", None)
 }
 
-brobox.configuration.read(CredentialsFile, config)
-brobox.configuration.read(ConfigFile, config)
+client.configuration.read(CredentialsFile, config)
+client.configuration.read(ConfigFile, config)
 
-# Build initial bare-bones argument parser without any BroBox meta information.
-parser = brobox.argparser.createParser(config)
+# Build initial bare-bones argument parser without any Corelight Sensor meta information.
+parser = client.argparser.createParser(config)
 (args, remaining) = parser.parse_known_args(argv_pass1)
 
 if args.version:
-    print("{} {}".format(brobox.NAME, brobox.VERSION))
+    print("{} {}".format(client.NAME, client.VERSION))
     sys.exit(0)
 
-if not args.brobox:
+if not args.device:
     if "-h" in sys.argv or "--help" in sys.argv or "help" in sys.argv:
         parser.print_help()
     else:
-        print("You need to specify the address of your BroBox.")
+        print("You need to specify the address of your Corelight Sensor.")
 
     sys.exit(1)
 
-brobox.util.enableDebug(args.debug_level)
+client.util.enableDebug(args.debug_level)
 
-if "://" in args.brobox:
-    base = urllib.parse.urlparse(args.brobox)
+if "://" in args.device:
+    base = urllib.parse.urlparse(args.device)
     scheme = base.scheme
     url = BaseURL.format(scheme=base.scheme, netloc=base.netloc)
 else:
     scheme = "https"
-    url = BaseURL.format(scheme="https", netloc=args.brobox)
+    url = BaseURL.format(scheme="https", netloc=args.device)
 
 # Create directory for persistent state.
 if not os.path.isdir(StateDir):
@@ -74,28 +74,28 @@ if not os.path.isdir(StateDir):
         os.mkdir(StateDir)
         os.chmod(StateDir, 0o700)
     except IOError as e:
-        brobox.util.fatalError("cannot create directory '{}'".format(StateDir), e)
+        client.util.fatalError("cannot create directory '{}'".format(StateDir), e)
 
 # Prompt for missing credentials if running interactively.
 new_credentials = 0
 
 if scheme == "https" and sys.stdin.isatty() and sys.stdout.isatty():
     if not args.user:
-        args.user = brobox.util.getInput("User name")
+        args.user = client.util.getInput("User name")
 
         if args.user:
             new_credentials += 1
             argv_pass2 = ["--user", args.user] + argv_pass2
 
     if not args.password:
-        args.password = brobox.util.getInput("Password", password=True)
+        args.password = client.util.getInput("Password", password=True)
 
         if args.password:
             new_credentials += 1
             argv_pass2 = ["--password", args.password] + argv_pass2
 
 # Retrieve meta information from device.
-session = brobox.session.Session(args)
+session = client.session.Session(args)
 
 if args.cache:
     cache = args.cache
@@ -105,12 +105,12 @@ else:
     if cache.endswith("_"):
         cache = cache[:-1]
 
-meta = brobox.meta.load(session, url, cache)
+meta = client.meta.load(session, url, cache)
 meta.save(cache)
 
 # Access worked, offer to save crendentials if entered interactively.
 if new_credentials > 0 and (args.user and args.password):
-    if brobox.util.getInput("Save credentials? (yes/no)") == "yes":
+    if client.util.getInput("Save credentials? (yes/no)") == "yes":
         try:
             with open(CredentialsFile, "w") as fp:
                 print("user={}".format(args.user), file=fp)
@@ -121,10 +121,10 @@ if new_credentials > 0 and (args.user and args.password):
             print("Credentials saved to {}".format(CredentialsFile))
 
         except IOError as e:
-            brobox.util.fatalError("cannot save credentials to '{}'".format(CredentialsFile), e)
+            client.util.fatalError("cannot save credentials to '{}'".format(CredentialsFile), e)
 
 # Now extend the argument parser with all the meta information.
-brobox.argparser.populateParser(parser, meta)
+client.argparser.populateParser(parser, meta)
 
 # Reparse command line arguments.
 args = parser.parse_args(argv_pass2)
@@ -134,7 +134,7 @@ session.setArguments(args)
 try:
     # A "help" command.
     help = args.parser_for_help
-    brobox.argparser.printHelp(None, help, args)
+    client.argparser.printHelp(None, help, args)
 except AttributeError:
     pass
 
@@ -144,4 +144,4 @@ except AttributeError:
     print("No command given. Use --help to see list.")
     sys.exit(1)
 
-brobox.resource.process(session, resource)
+client.resource.process(session, resource)

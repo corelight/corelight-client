@@ -1,30 +1,30 @@
 
-.. _brobox-client:
+.. _corelight-client:
 
 .. Version number is filled in automatically.
 .. |version| replace:: 1.0.5
 
-==========================
-BroBox Command Line Client
-==========================
+====================================
+Corelight Sensor Command Line Client
+====================================
 
 .. contents::
 
 Overview
 ========
 
-This tool provides a command-line client for `BroBox One
+This tool provides a command-line client for the `Corelight Sensor
 <https://www.corelight.com>`_, a `Bro <https://www.bro.org>`_
-appliance engineered from the ground up by Bro's creators
-to transform network traffic into
-high-fidelity data for your analytics pipeline. Using the command-line
-client, you can configure and control a BroBox remotely through its
-comprehensive RESTful API. See the BroBox documentation for an
-extended version of this client overview.
+appliance engineered from the ground up by Bro's creators to transform
+network traffic into high-fidelity data for your analytics pipeline.
+Using the command-line client, you can configure and control a
+Corelight Sensor remotely through its comprehensive RESTful API. See
+the Corelight Sensor documentation for an extended version of this
+client overview.
 
 :Version: |version|
 :Home: http://www.corelight.com
-:GitHub: https://github.com/corelight/brobox-client
+:GitHub: https://github.com/corelight/corelight-client
 :Author: `Corelight, Inc. <https://www.corelight.com>`_ <info@corelight.com>
 
 License
@@ -42,19 +42,19 @@ module installed as its main dependency.
 The easiest way to install the client is through the Python Package
 Index::
 
-    # pip3 install brobox-client
+    # pip3 install corelight-client
 
 Alternatively, you can install the latest version from GitHub::
 
-    # git clone https://github.com/corelight/brobox-client
-    # cd brobox-client
+    # git clone https://github.com/corelight/corelight-client
+    # cd corelight-client
     # python3 setup.py install
 
 If everything is installed correctly, ``--help`` will give you a usage
 message::
 
-    # brobox --help
-    Usage: brobox [<global options>] <command> <subcommand> [<options>]
+    # corelight-client --help
+    Usage: corelight-client [<global options>] <command> <subcommand> [<options>]
               [--ssl-ca-cert SSL_CA_CERT] [--ssl-no-verify-certificate]
               [--ssl-no-verify-hostname] [--cache CACHE]
     [...]
@@ -66,26 +66,26 @@ to your device.
 Access and Authentication
 =========================
 
-You need to enable access to the BroBox API through the device's
+You need to enable access to the Corelight API through the device's
 configuration interface. You also need to set passwords for the API
 users ``admin`` (for unlimited access) and ``monitor`` (for read-only
-access). See the BroBox documentation for more information.
+access). See the Corelight Sensor documentation for more information.
 
-Next, you need to tell the ``brobox`` client the network address of
-your BroBox. You have three choices for doing that:
+Next, you need to tell the ``corelight-client`` the network address of
+your Corelight Sensor. You have three choices for doing that:
 
 - Add ``-b <address>`` to the command-line.
 
-- Create a configuration file ``~/.broboxrc`` with the content
-  ``brobox=<address>``.
+- Create a configuration file ``~/.corelight-client.rc`` with the content
+  ``device=<address>``.
 
-- Set the environment variable ``BROBOX=<address>``.
+- Set the environment variable ``CORELIGHT_DEVICE=<address>``.
 
-If that's all set up, ``brobox --help`` will now ask you for a
+If that's all set up, ``corelight-client --help`` will now ask you for a
 username and password, and then show you the full list of commands
 that the device API enables the client to offer. If you confirm saving
 the credentials, the client will store them in
-``~/.brobox/credentials`` for future reuse. You can also specify
+``~/.corelight-client/credentials`` for future reuse. You can also specify
 authentication information through the `Configuration File`_ or as
 `Global Options`_.
 
@@ -107,22 +107,22 @@ command-line itself.
 (Note: The ``--help`` output will contain the list of commands only if
 the client can connect, and authenticate, to the device.)
 
-.. _brobox-client-options:
+.. _corelight-client-options:
 
 Global Options
 --------------
 
-The ``brobox`` client support the following global command-line
+The ``corelight-client`` supports the following global command-line
 options with all operations:
 
 ``--async``
     Does not wait for asynchronous commands to complete before exiting.
 
-``--brobox``
-    Specifies the network address of the BroBox device.
+``--device``
+    Specifies the network address of the Corelight Sensor device.
 
 ``--cache=<file>``
-    Sets a custom file for caching BroBox meta data.
+    Sets a custom file for caching Corelight Sensor meta data.
 
 ``--debug``
     Enables debugging output showing HTTP requests and replies.
@@ -135,30 +135,30 @@ options with all operations:
     validating the device's authenticity.
 
 ``--ssl-no-verify-certificate``
-    Instructs the client to accept any BroBox device SSL certificate.
+    Instructs the client to accept any Corelight Sensor SSL certificate.
 
 ``--ssl-no-verify-hostname``
-    Instructs the client to accept the BroBox's device SSL certificate
+    Instructs the client to accept the Corelight Sensor's SSL certificate
     even if it does not match its hostname.
 
 ``--user``
     Specifies the user name for authentication.
 
 ``--version``
-    Displays the version of the ``brobox`` client and exits.
+    Displays the version of the ``corelight-client`` and exits.
 
 
-.. _brobox-client-config:
+.. _corelight-client-config:
 
 Configuration File
 ==================
 
-The ``brobox`` clients looks for a configuration file ``~/.broboxrc``.
+The ``corelight-client`` looks for a configuration file ``~/.corelight-client.rc``.
 The file must consist of lines ``<key>=<value>``. Comments starting
-with ``#`` are ignored. ``brobox`` support the following keys:
+with ``#`` are ignored. ``corelight-client`` support the following keys:
 
-``brobox``
-    The network address of the BroBox device.
+``device``
+    The network address of the Corelight Sensor device.
 
 ``user``
     The user name for authentication.
@@ -171,11 +171,11 @@ with ``#`` are ignored. ``brobox`` support the following keys:
     authenticity.
 
 ``ssl-no-verify-certificate``
-    If set to ``false``, the client will accept any BroBox device SSL
+    If set to ``false``, the client will accept any Corelight Sensor's SSL
     certificate.
 
 ``ssl-no-verify-hostname``
-    If set to ``false``, the client will accept the BroBox' device SSL
+    If set to ``false``, the client will accept the Corelight Sensor's SSL
     certificate even if it does not match its hostname.
 
 

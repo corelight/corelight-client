@@ -10,7 +10,7 @@ import os.path
 import sys
 import time
 
-import brobox.util
+import client.util
 
 # The format for the readable ASCII representation of times the API returns.
 _TimeFormat = "%Y-%m-%d %H:%M:%S %Z"
@@ -65,10 +65,10 @@ def _prepareParameters(resource, key, values, params, files):
                     params[name] = file.read().decode("utf8")
 
             except IOError as e:
-                brobox.util.fatalError("Cannot open file {}".format(value), e)
+                client.util.fatalError("Cannot open file {}".format(value), e)
 
             except UnicodeDecodeError:
-                brobox.util.fatalError("The file {} contains non-UTF8 characters, which the parameter '{}' does not support".format(value, name))
+                client.util.fatalError("The file {} contains non-UTF8 characters, which the parameter '{}' does not support".format(value, name))
 
         elif type == "dictionary":
             params[name] = value
@@ -111,7 +111,7 @@ def _renderObject(response_fields_by_name, obj, hide):
     values = [normalize(k, v) for (k, v) in values if not k in hide]
     values = [i for j in values for i in j] # flatten
 
-    return brobox.util.formatTuples(values)
+    return client.util.formatTuples(values)
 
 def _saveFiles(response_fields, obj):
     """
@@ -126,7 +126,7 @@ def _saveFiles(response_fields, obj):
         try:
             content = base64.standard_b64decode(file["content"])
         except binascii.Error:
-            brobox.util.fatalError("cannot decode server's base64 file content")
+            client.util.fatalError("cannot decode server's base64 file content")
 
         # Save content, but don't overwrite existing files.
         fname = file["name"]
@@ -150,7 +150,7 @@ def _saveFiles(response_fields, obj):
             print("Saved {}".format(fname))
 
         except IOError:
-            brobox.util.fatalError("error saving file", e)
+            client.util.fatalError("error saving file", e)
 
 def _responseString(resource, status_code, default=None):
     """
@@ -182,9 +182,9 @@ def _responseString(resource, status_code, default=None):
 
 def process(session, resource, force_url=None):
     """
-    Contacts the BroBox to access a resource.
+    Contacts the Corelight Sensor to access a resource.
 
-    session (brobox.session.Session): The session object to use for
+    session (client.session.Session): The session object to use for
     requests.
 
     resource (dict): The meta information for the resource to access and
@@ -251,13 +251,13 @@ def _processResponse(session, resource, response, schema, cache, data):
     Processes the response after retrieving a resource. This funtion does *not*
     handle ``202 Accepted``.
 
-    session (brobox.session.Session): The session object to use for
+    session (client.session.Session): The session object to use for
     requests.
 
     resource (dict): The meta information for the resource to access and
     process.
 
-    The other parameters match the result of ``brobox.util.retrieveResource``.
+    The other parameters match the result of ``client.util.retrieveResource``.
     """
     status = response.status_code
     success = (status >= 200 and status < 300)
@@ -355,7 +355,7 @@ def _processResponse(session, resource, response, schema, cache, data):
 
     if schema == "collection":
         if not isinstance(data, list):
-            brobox.util.fatalError("server sent a collection that's not a list")
+            client.util.fatalError("server sent a collection that's not a list")
 
         if len(data) == 0:
             print("No entries.")
@@ -397,12 +397,12 @@ def _waitForResult(session, response):
     Handle a ``202 Accepted`` response by retrying until the actual response
     becomes available.
 
-    session (brobox.session.Session): The session object to use for
+    session (client.session.Session): The session object to use for
     requests.
 
     response (requests.Response): The 202 response object.
 
-    The return value matches that of ``brobox.util.retrieveResource``, now
+    The return value matches that of ``client.util.retrieveResource``, now
     with the actual response to continue processing with.
     """
     have_output = False
@@ -414,7 +414,7 @@ def _waitForResult(session, response):
         location = response.headers.get("location", None)
 
         if not location:
-            brobox.util.fatalError("202 response from server did not have a location header")
+            client.util.fatalError("202 response from server did not have a location header")
 
         (response, schema, cache, data) = session.retrieveResource(location, method="GET")
 

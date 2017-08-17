@@ -6,7 +6,7 @@ import re
 import sys
 import textwrap
 
-import brobox.util
+import client.util
 
 def printHelp(self, parser, namespace, values=None, option_string=None): # pylint: disable=unused-argument
     args = vars(namespace)
@@ -57,7 +57,7 @@ def _formatUsage(path, has_subcommand):
         path = "<command>"
 
     addl = (" <subcommand>" if has_subcommand else "")
-    return "{} [<global options>] {}{} [<options>]".format(brobox.NAME, path.strip(), addl)
+    return "{} [<global options>] {}{} [<options>]".format(client.NAME, path.strip(), addl)
 
 def _buildArgument(parser, param):
     try:
@@ -177,7 +177,7 @@ class ComponentArgumentParser(argparse.ArgumentParser):
     def format_usage(self):
         """Overridden from base class."""
         # Will be updated in HelpAction.
-        return brobox.NAME
+        return client.NAME
 
     def format_help(self):
         """Overridden from base class."""
@@ -212,8 +212,8 @@ class ComponentArgumentParser(argparse.ArgumentParser):
 
         if not self._resources and not self._parent:
             epilog += "\n"
-            epilog += "  To see available commands, specify your BroBox' address with -b.\n"
-            epilog += "  You can also set the BROBOX environment variable or create a\n"
+            epilog += "  To see available commands, specify your Corelight Sensor's address with -b.\n"
+            epilog += "  You can also set the CORELIGHT_DEVICE environment variable or create a\n"
             epilog += "  configuration file."
             return epilog
 
@@ -252,7 +252,7 @@ class ComponentArgumentParser(argparse.ArgumentParser):
         return epilog
 
     def error(self, message):
-        print("{} error: {}".format(brobox.NAME, message), file=sys.stderr)
+        print("{} error: {}".format(client.NAME, message), file=sys.stderr)
         self.exit(1)
 
 class CommandArgumentParser(argparse.ArgumentParser):
@@ -354,7 +354,7 @@ class CommandArgumentParser(argparse.ArgumentParser):
     def format_usage(self):
         """Overridden from base class."""
         # Will be updated in HelpAction.
-        return brobox.NAME
+        return client.NAME
 
     def format_help(self):
         """Overridden from base class."""
@@ -397,12 +397,12 @@ class CommandArgumentParser(argparse.ArgumentParser):
 
             tuples.append((x, y))
 
-        epilog += brobox.util.formatTuples(tuples)
+        epilog += client.util.formatTuples(tuples)
 
         return epilog
 
     def error(self, message):
-        print("{} error: {}".format(brobox.NAME, message), file=sys.stderr)
+        print("{} error: {}".format(client.NAME, message), file=sys.stderr)
         self.exit(1)
 
 def createParser(config):
@@ -413,7 +413,7 @@ def createParser(config):
     Returns: A new ``ComponentArgumentParser`` for the top level.
     """
 
-    brobox = config.get("brobox", None)
+    device = config.get("device", None)
     user = config.get("user", None)
     password = config.get("password", None)
     ssl_ca_cert = config.get("ssl-ca-cert", None)
@@ -421,8 +421,8 @@ def createParser(config):
     ssl_no_verify_certificate = config.get("ssl-no-verify-certificate", False)
 
     parser = ComponentArgumentParser()
-    parser.add_argument("-b", "--brobox", action="store", dest="brobox", default=brobox,
-                        help="Name or IP address of your BroBox.")
+    parser.add_argument("-b", "--device", action="store", dest="device", default=device,
+                        help="Name or IP address of your Corelight Sensor.")
     parser.add_argument("-v", "--version", action="store_true",
                         help="Show version of the API client software.")
     parser.add_argument("-d", "--debug", action="count", dest="debug_level",
@@ -449,13 +449,13 @@ ComponentParsers = {}
 def populateParser(parser, meta):
     """
     Extend a previously created top-level command line argument parser with
-    options derived from the meta information downloaded from a BroBox. This
+    options derived from the meta information downloaded from a Corelight Sensor. This
     fills in most of the command & options that the command client supports.
 
     parser (ComponentArgumentParser): The parser to extend, which must have
     been previously created with ``createtopLevelParser()``.
 
-    meta (meta.Meta): The complete meta information downloaded from a BroBox.
+    meta (meta.Meta): The complete meta information downloaded from a Corelight Sensor.
 
     Returns: Nothing.
     """

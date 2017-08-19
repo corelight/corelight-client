@@ -34,7 +34,7 @@ function install_one
         echo "test_command = /bin/true" >> ${git}/bro-pkg.meta
     fi
     (cd ${git} && git init && git add . && eval git ${git_cfg} commit -m "'Initializing repository.'")
-    (cd ${tmp} && bro-pkg install --force $(basename ${module}))
+    (cd ${tmp} && bro-pkg install --skiptests --force $(basename ${module}))
 }
 
 function cleanup

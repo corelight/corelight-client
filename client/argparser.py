@@ -442,6 +442,10 @@ def createParser(config):
     parser.add_argument("--cache", action="store", dest="cache", default=None,
                         help="Location where to store meta cache.")
 
+    # Legacy BroBox support. To be removed.
+    parser.add_argument("--brobox", action="store", dest="brobox", default=None,
+                        help=argparse.SUPPRESS)
+
     return parser
 
 ComponentParsers = {}

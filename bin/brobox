@@ -1,0 +1,12 @@
+#! /usr/bin/env bash
+#
+# Backward-compatibilty wrapper forwarding to the new name of the
+# script, corelight-client.
+
+cat <<EOF
+Note: The "brobox" tool has been renamed to "corelight-client". Use of the old
+      name is deprecated and support will be removed in a future version.
+
+EOF
+
+exec $(dirname $0)/corelight-client $@

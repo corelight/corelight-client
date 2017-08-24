@@ -22,6 +22,9 @@ BaseURL = "{scheme}://{netloc}/api/"
 # User configuration file.
 ConfigFile = os.path.expanduser("~/.corelight-client.rc")
 
+# Legacy configuration file, to be removed.
+ConfigFileLegacy = os.path.expanduser("~/.broboxrc")
+
 # Directory where to store persistent state.
 StateDir = os.path.expanduser("~/.corelight-client")
 
@@ -35,16 +38,41 @@ MetaCacheFileBase = os.path.join(StateDir, "cache")
 argv_pass1 = [a for a in sys.argv[1:] if a != "-h" and a != "--help"]
 argv_pass2 = sys.argv[1:]
 
+corelight_device = os.environ.get("CORELIGHT_DEVICE", None)
+
+# Legacy BroBox support. To be removed.
+if "BROBOX" in os.environ and corelight_device is None:
+    print("""Note: The environment variable BROBOX has been renamed to CORELIGHT_DEVICE.
+      The old name is deprecated and support will be removed in a future version.
+""", file=sys.stderr)
+    corelight_device = os.environ.get("BROBOX_DEVICE", None)
+
 config = {
-    "device": os.environ.get("CORELIGHT_DEVICE", None)
+    "device": corelight_device
 }
 
 client.configuration.read(CredentialsFile, config)
+
+# Legacy BroBox support. To be removed.
+if os.path.exists(ConfigFileLegacy):
+    print("""Note: Please rename {} to {}.
+      The old name is deprecated and support will be removed in a future version.
+""".format(ConfigFileLegacy, ConfigFile),
+      file=sys.stderr)
+    client.configuration.read(ConfigFileLegacy, config)
+
 client.configuration.read(ConfigFile, config)
 
 # Build initial bare-bones argument parser without any Corelight Sensor meta information.
 parser = client.argparser.createParser(config)
 (args, remaining) = parser.parse_known_args(argv_pass1)
+
+# Legacy BroBox support. To be removed.
+if not args.device and args.brobox:
+    print("""Note: Please use --device instead of --brobox.
+      The old option is deprecated and support will be removed in a future version.
+""", file=sys.stderr)
+    args.device = args.brobox
 
 if args.version:
     print("{} {}".format(client.NAME, client.VERSION))

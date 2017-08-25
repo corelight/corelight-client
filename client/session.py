@@ -295,7 +295,8 @@ class Session:
                             break
 
                 if cn != "{}.api.appliance.broala.com".format(uid) and \
-                   cn != "{}.client.corelight.io".format(uid):
+                   cn != "{}.brobox.corelight.io".format(uid) and \
+                   cn != "{}.device.corelight.com".format(uid):
                     client.util.fatalError("device's UID does not match its certificate (certificate {} for device {})".format(cn, uid))
 
         if response.status_code == 401:

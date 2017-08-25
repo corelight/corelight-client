@@ -45,7 +45,7 @@ if "BROBOX" in os.environ and corelight_device is None:
     print("""Note: The environment variable BROBOX has been renamed to CORELIGHT_DEVICE.
       The old name is deprecated and support will be removed in a future version.
 """, file=sys.stderr)
-    corelight_device = os.environ.get("BROBOX_DEVICE", None)
+    corelight_device = os.environ.get("BROBOX", None)
 
 config = {
     "device": corelight_device

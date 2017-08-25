@@ -17,7 +17,7 @@ setuptools.setup(name="corelight-client",
     author="Corelight",
     author_email="info@corelight.com",
     license="BSD",
-    packages=["corelight-client"],
+    packages=["client"],
     zip_safe=False,
 
     scripts=[

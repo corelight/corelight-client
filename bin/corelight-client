@@ -28,8 +28,14 @@ ConfigFileLegacy = os.path.expanduser("~/.broboxrc")
 # Directory where to store persistent state.
 StateDir = os.path.expanduser("~/.corelight-client")
 
+# Legacy directory where to store persistent state.
+StateDirLegacy = os.path.expanduser("~/.brobox")
+
 # File where to store credentials if requested.
 CredentialsFile = os.path.join(StateDir, "credentials")
+
+# Legacy file where to store credentials if requested.
+CredentialsFileLegacy = os.path.join(StateDirLegacy, "credentials")
 
 # Base bath where to cache meta information.
 MetaCacheFileBase = os.path.join(StateDir, "cache")
@@ -51,7 +57,13 @@ config = {
     "device": corelight_device
 }
 
-client.configuration.read(CredentialsFile, config)
+if os.path.exists(CredentialsFileLegacy) and not os.path.exists(CredentialsFile):
+    print("""Note: The credentials file {} is deprecated and will be removed in
+            a future version.  Please use {} instead."""
+            .format(CredentialsFileLegacy, CredentialsFile), file=sys.stderr)
+    client.configuration.read(CredentialsFileLegacy, config)
+else:
+    client.configuration.read(CredentialsFile, config)
 
 # Legacy BroBox support. To be removed.
 if os.path.exists(ConfigFileLegacy):

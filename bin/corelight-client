@@ -57,10 +57,11 @@ config = {
     "device": corelight_device
 }
 
+# Legacy BroBox support. To be removed.
 if os.path.exists(CredentialsFileLegacy) and not os.path.exists(CredentialsFile):
-    print("""Note: The credentials file {} is deprecated and will be removed in
-            a future version.  Please use {} instead."""
-            .format(CredentialsFileLegacy, CredentialsFile), file=sys.stderr)
+    print("""Note: The credentials file {} is deprecated and support will be
+      removed in a future version.  Please use {} instead."""
+        .format(CredentialsFileLegacy, CredentialsFile), file=sys.stderr)
     client.configuration.read(CredentialsFileLegacy, config)
 else:
     client.configuration.read(CredentialsFile, config)

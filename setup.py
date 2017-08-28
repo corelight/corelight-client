@@ -22,11 +22,13 @@ setuptools.setup(name="corelight-client",
 
     scripts=[
         "bin/corelight-client",
-        "bin/bro-pkg-bundle"
-        ],
+        "bin/bro-pkg-bundle",
+        # Legacy script, to be removed.
+        "bin/brobox"
+       ],
 
     package_data={
-        "corelight-client": [
+        "client": [
             "certs/corelight.pem"
             ]
         },

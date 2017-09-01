@@ -1,4 +1,8 @@
 
+1.1.2-1 | 2017-10-24 23:17:23 +0200
+
+  * Caching credentials separately for each device.
+
 1.1.2 | 2017-10-15 22:17:48 +0200
 
   * Improve robustness against intermittent losses of connectivity

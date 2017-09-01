@@ -4,6 +4,7 @@
 #
 # See COPYING for license information.
 
+import json
 import os
 import os.path
 import sys
@@ -58,15 +59,6 @@ config = {
 }
 
 # Legacy BroBox support. To be removed.
-if os.path.exists(CredentialsFileLegacy) and not os.path.exists(CredentialsFile):
-    print("""Note: The credentials file {} is deprecated and support will be
-      removed in a future version.  Please use {} instead."""
-        .format(CredentialsFileLegacy, CredentialsFile), file=sys.stderr)
-    client.configuration.read(CredentialsFileLegacy, config)
-else:
-    client.configuration.read(CredentialsFile, config)
-
-# Legacy BroBox support. To be removed.
 if os.path.exists(ConfigFileLegacy):
     print("""Note: Please rename {} to {}.
       The old name is deprecated and support will be removed in a future version.
@@ -109,6 +101,33 @@ else:
     scheme = "https"
     url = BaseURL.format(scheme="https", netloc=args.device)
 
+# Create a normalized version of the URL that we can use as a unique index for
+# the device.
+device_id = url.replace("://", "_").replace("/", "_").replace(":", "_").lower()
+
+if device_id.endswith("_"):
+    device_id = device_id[:-1]
+
+# Legacy BroBox support. To be removed.
+if os.path.exists(CredentialsFileLegacy) and not os.path.exists(CredentialsFile):
+    print("""Note: The credentials file {} is deprecated and support will be
+      removed in a future version.  Please use {} instead."""
+        .format(CredentialsFileLegacy, CredentialsFile), file=sys.stderr)
+    # Legacy format that doesn't index by device.
+    d = {}
+    client.configuration.read(CredentialsFileLegacy, d)
+    creds = (d.get("user", None), d.get("password", None))
+
+else:
+    # New format indexed by device ID.
+    creds = client.configuration.readCredentials(CredentialsFile, device_id)
+
+if not args.user:
+    args.user = creds[0]
+
+if not args.password:
+    args.password = creds[1]
+
 # Create directory for persistent state.
 if not os.path.isdir(StateDir):
     try:
@@ -141,10 +160,7 @@ session = client.session.Session(args)
 if args.cache:
     cache = args.cache
 else:
-    cache = (MetaCacheFileBase + "_" + url.replace("://", "_").replace("/", "_").replace(":", "_").lower())
-
-    if cache.endswith("_"):
-        cache = cache[:-1]
+    cache = (MetaCacheFileBase + "_" + device_id)
 
 meta = client.meta.load(session, url, cache)
 meta.save(cache)
@@ -152,17 +168,7 @@ meta.save(cache)
 # Access worked, offer to save crendentials if entered interactively.
 if new_credentials > 0 and (args.user and args.password):
     if client.util.getInput("Save credentials? (yes/no)") == "yes":
-        try:
-            with open(CredentialsFile, "w") as fp:
-                print("user={}".format(args.user), file=fp)
-                print("password={}".format(args.password), file=fp)
-            fp.close()
-
-            os.chmod(CredentialsFile, 0o600)
-            print("Credentials saved to {}".format(CredentialsFile))
-
-        except IOError as e:
-            client.util.fatalError("cannot save credentials to '{}'".format(CredentialsFile), e)
+        client.configuration.saveCredentials(CredentialsFile, args, device_id)
 
 # Now extend the argument parser with all the meta information.
 client.argparser.populateParser(parser, meta)

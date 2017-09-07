@@ -234,7 +234,7 @@ def process(session, resource, force_url=None):
     # Replace any templated variables.
     for d in resource["variables"]:
         k = d["name"]
-        url = url.replace("{" + k + "}", values[k])
+        url = url.replace("{" + k + "}", str(values[k]))
 
     ### Request resource.
 

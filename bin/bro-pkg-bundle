@@ -54,6 +54,12 @@ while [ $# -gt 0 ]; do
     case $1 in
         --bundle)
            bundle=$2
+
+           if [ -d "${bundle}" ]; then
+               echo "Cowardly refusing to overwrite existing directory '${bundle}'"
+               exit 1
+           fi
+
            shift
            shift
            ;;

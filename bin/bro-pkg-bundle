@@ -86,7 +86,7 @@ for dep in bro-pkg git; do
 done
 
 
-bpkg_version=$(bro-pkg --version | cut -d ' ' -f 2 | sed 's/-.*$//g')
+bpkg_version=$(bro-pkg --version 2>&1 | cut -d ' ' -f 2 | sed 's/-.*$//g')
 v=(${bpkg_version//./ })
 if [ -z "${v[2]}" ]; then
     bpkg_version="${v[0]}${v[1]}0"
@@ -95,7 +95,7 @@ else
 fi
 
 if (( "${bpkg_version}" < 104 )); then
-    echo "Need at least bro-pkg version 1.0.4."
+    echo "Need at least bro-pkg version 1.0.4 (found '${bpkg_version}'.)"
     exit 1
 fi
 

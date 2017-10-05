@@ -8,4 +8,4 @@ wheel:
 	python3 setup.py bdist_wheel
 
 pypi-upload: distclean wheel
-	twine upload --config-file .pypirc dist/corelight-client-*.whl
+	twine upload --config-file .pypirc dist/corelight_client-*.whl

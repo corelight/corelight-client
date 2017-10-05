@@ -10,7 +10,7 @@ def readme():
         return f.read()
 
 setuptools.setup(name="corelight-client",
-    version="1.1",
+    version="1.1-1",
     description="Corelight API client",
     long_description=readme(),
     url="https://github.com/corelight/corelight-client",
@@ -19,6 +19,7 @@ setuptools.setup(name="corelight-client",
     license="BSD",
     packages=["client"],
     zip_safe=False,
+    obsoletes=["brobox_client"],
 
     scripts=[
         "bin/corelight-client",

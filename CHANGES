@@ -1,4 +1,9 @@
 
+1.1.2 | 2017-10-15 22:17:48 +0200
+
+  * Improve robustness against intermittent losses of connectivity
+    during device reconfiguration.
+
 1.1.1 | 2017-10-12 10:34:50 -0700
 
   * Fix hostname validation for Corelight device certificates.

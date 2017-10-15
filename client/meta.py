@@ -95,7 +95,10 @@ def load(session, base_url, force=False, cache_file=None):
 
     cache_file (str): File where to load cached meta data from if it exists.
     """
-    (_, schema, cache, data) = session.retrieveResource(base_url, debug_level=2)
+    try:
+        (_, schema, cache, data) = session.retrieveResource(base_url, debug_level=2)
+    except client.session.SessionError as e:
+        e.fatalError()
 
     if schema != "index":
         client.util.fatalError("URL not pointing to API base address", base_url)
@@ -118,7 +121,10 @@ def _loadResource(session, meta, url):
     if meta.get(url):
         return
 
-    (_, schema, _, data) = session.retrieveResource(url, method="OPTIONS", debug_level=2)
+    try:
+        (_, schema, _, data) = session.retrieveResource(url, method="OPTIONS", debug_level=2)
+    except client.session.SessionError as e:
+        e.fatalError()
 
     if schema == "index":
         return

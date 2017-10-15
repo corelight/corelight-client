@@ -149,7 +149,7 @@ def _saveFiles(response_fields, obj):
 
             print("Saved {}".format(fname))
 
-        except IOError:
+        except IOError as e:
             client.util.fatalError("error saving file", e)
 
 def _responseString(resource, status_code, default=None):
@@ -242,7 +242,10 @@ def process(session, resource, force_url=None):
         url = force_url
         params = {}
 
-    (response, schema, cache, data) = session.retrieveResource(url, method=method, params=params, json=json_arg, files=files)
+    try:
+        (response, schema, cache, data) = session.retrieveResource(url, method=method, params=params, json=json_arg, files=files)
+    except client.session.SessionError as e:
+        e.fatalError()
 
     _processResponse(session, resource, response, schema, cache, data)
 
@@ -406,27 +409,50 @@ def _waitForResult(session, response):
     with the actual response to continue processing with.
     """
     have_output = False
+    update_location = True
+    errors_left = 10
 
     while True:
         # Result pending, keep trying.
         time.sleep(1)
+        dot = "."
 
-        location = response.headers.get("location", None)
+        if update_location:
+            location = response.headers.get("location", None)
 
-        if not location:
-            client.util.fatalError("202 response from server did not have a location header")
+            if not location:
+                client.util.fatalError("202 response from server did not have a location header")
 
-        (response, schema, cache, data) = session.retrieveResource(location, method="GET")
+        try:
+            (response, schema, cache, data) = session.retrieveResource(location, method="GET")
 
-        if response.status_code != 202:
-            if have_output:
-                print()
+            if response.status_code == 502:
+                # Bad gateway, which is probably a benign temporary service
+                # outage due to device reconfiguration. Exception will be
+                # handled below.
+                raise client.session.SessionError("Bad gateway".format(response.status_code))
 
-            return (response, schema, cache, data)
+            if response.status_code != 202:
+                if have_output:
+                    print()
+
+                return (response, schema, cache, data)
+
+            update_location = True
+
+        except client.session.SessionError as e:
+            # As we have already communicated with the server before this is
+            # most likely just a temporary loss of connectivity due to device
+            # reconfiguration. We'll retry a few times before flagging it as a
+            # problem.
+            errors_left -= 1
+            if errors_left < 0:
+                e.fatalError()
+
+            dot = "?"
+            update_location = False
 
         if sys.stdout.isatty():
-            print(".", end="")
+            print(dot, end="")
             sys.stdout.flush()
             have_output = True
-
-

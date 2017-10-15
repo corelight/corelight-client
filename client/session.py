@@ -25,6 +25,16 @@ _Version = 1
 
 requests.packages.urllib3.disable_warnings()
 
+class SessionError(Exception):
+    def __init__(self, msg, arg=None):
+        super(SessionError, self).__init__(msg + (" ({})".format(arg) if arg else ""))
+        self._msg = msg
+        self._arg = arg
+
+    def fatalError(self):
+        """Triggers a fatal error reporting  the exception's information."""
+        client.util.fatalError(self._msg, self._arg)
+
 # requests adaptor giving more control over certificate validation.
 # Adapted from http://docs.python-requests.org/en/master/user/advanced/#transport-adapters
 class _SSLAdapter(requests.adapters.HTTPAdapter):
@@ -129,11 +139,12 @@ class Session:
         and ``cache`` parameters in the ``Content-Type``, per Corelight Sensor
         API specification.
 
-        If the body is not JSON, or cannot be decoded as such the function abort
-        the process with a fatal error; same if no ``schema`` is found. The
-        exception is when the exponse indicates an error: in that case these
-        issues are non-fatal and empty objects are returned for the element that
-        couldn't be retrieved.
+        If the body is not JSON, or cannot be decoded as such, the
+        function raises an ``SessionError``; same if no ``schema`` is
+        found. The exception is when the response represents an error
+        itself: in that case these issues are non-fatal and empty
+        objects are returned for the element that couldn't be
+        retrieved.
 
         This also verifies that the response's format, and version value,
         conforms to the Corelight API specification as we would expect. The
@@ -144,11 +155,14 @@ class Session:
         All other keyword arguments are passed through to the
         corresponding ``requests`` methods.
 
-        Returns: A 4-tuple ``(requests.Response, string, string, any)``. The 1st
-        element is the complete response object; the 2nd is the ``schema``
-        parameter from response's ``Content-Type`` header; the 3rd is the
-        ``version`` parameter; and the 4th element is a Python object representing
-        the decoded JSON body.
+        Returns: A 4-tuple ``(requests.Response, string, string,
+        any)``. The 1st element is the complete response object; the
+        2nd is the ``schema`` parameter from response's
+        ``Content-Type`` header; the 3rd is the ``version`` parameter;
+        and the 4th element is a Python object representing the
+        decoded JSON body. When the method encounters an error, it
+        raises a ``SessionError`` exception. Usually this should be
+        considered a fatal error and execution be aborted.
         """
         response = self._retrieveURL(url, **kwargs)
         success = (response.status_code >= 200 and response.status_code < 300)
@@ -164,7 +178,7 @@ class Session:
                 data = response.json()
             except:
                 if success:
-                    client.util.fatalError("Cannot decode JSON body of response", url)
+                    raise SessionError("Cannot decode JSON body of response", url)
                 else:
                     return (response, "", "", {})
 
@@ -173,7 +187,7 @@ class Session:
 
         else:
             if success:
-                client.util.fatalError("Received non-JSON response from Corelight Sensor", url)
+                raise SessionError("Received non-JSON response from Corelight Sensor", url)
             else:
                 return (response, "", "", {})
 
@@ -183,16 +197,16 @@ class Session:
             cache = params["cache"]
         except KeyError:
             if success:
-                client.util.fatalError("Corelight Sensor response did not include all required API parameters", url)
+                raise SessionError("Corelight Sensor response did not include all required API parameters", url)
             else:
                 return (response, "", "", data)
 
         try:
             if int(version) > _Version:
-                client.util.fatalError("Your current {} client does not support the device's version, please update the client.".format(client.NAME))
+                raise SessionError("Your current {} client does not support the device's version, please update the client.".format(client.NAME))
         except ValueError:
             # This remains a fatal error even if request failed.
-            client.util.fatalError("Cannot parse version in response.", url)
+            raise SessionError("Cannot parse version in response.", url)
 
         return (response, schema, cache, data)
 
@@ -200,8 +214,8 @@ class Session:
         """
         Retrieves a given URL through a ``GET`` or ``HEAD`` request.
 
-        The function aborts with a fatal error if there's an error retrieving the
-        URL.
+        When the method encounters an error retrieving the URL, it raises a
+        `SessionError` exception.
 
         url (str): The full URL to retrieve.
 
@@ -244,14 +258,14 @@ class Session:
 
         except requests.exceptions.SSLError as e:
             u = urllib.parse.urlparse(url)
-            client.util.fatalError("cannot connect to Corelight Sensor at {}. {}".format(u.netloc, e))
+            raise SessionError("cannot connect to Corelight Sensor at {}. {}".format(u.netloc, e))
 
         except requests.ConnectionError as e:
             u = urllib.parse.urlparse(url)
-            client.util.fatalError("cannot connect to Corelight Sensor at {}".format(u.netloc))
+            raise SessionError("cannot connect to Corelight Sensor at {}".format(u.netloc))
 
         except Exception as e:
-            client.util.fatalError("cannot retrieve URL from Corelight Sensor", e)
+            raise SessionError("cannot retrieve URL from Corelight Sensor", e)
 
         # Available only for SSL connections.
         try:
@@ -275,7 +289,7 @@ class Session:
 
             if response.content:
                 for line in response.content.splitlines():
-                    client.util.debug("| "+ line.decode("utf8"), level=debug_level)
+                    client.util.debug("| " + line.decode("utf8"), level=debug_level)
 
         if cert and not self._args.ssl_ca_cert:
             uid = response.headers.get("X-CORELIGHT-UID", None)
@@ -297,13 +311,13 @@ class Session:
                 if cn != "{}.api.appliance.broala.com".format(uid) and \
                    cn != "{}.brobox.corelight.io".format(uid) and \
                    cn != "{}.device.corelight.io".format(uid):
-                    client.util.fatalError("device's UID does not match its certificate (certificate {} for device {})".format(cn, uid))
+                    raise SessionError("device's UID does not match its certificate (certificate {} for device {})".format(cn, uid))
 
         if response.status_code == 401:
-            client.util.fatalError("Request not authorized. Did you specify a correct username and password?")
+            raise SessionError("Request not authorized. Did you specify a correct username and password?")
 
         if response.status_code == 403:
-            client.util.fatalError("Operation forbidden. You do not have the needed access right.")
+            raise SessionError("Operation forbidden. You do not have the needed access right.")
 
         return response
 
@@ -330,7 +344,7 @@ class Session:
             if ignore_errors:
                 return (None, None, None)
 
-            client.util.fatalError("Response without Content-Type header")
+            raise SessionError("Response without Content-Type header")
 
         try:
             m = ct.split(";")
@@ -348,7 +362,7 @@ class Session:
             if ignore_errors:
                 return (None, None, None)
 
-            client.util.fatalError("Cannot parse Content-Type", ct)
+            raise SessionError("Cannot parse Content-Type", ct)
 
     def _requestHeaders(self):
         """

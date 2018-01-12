@@ -1,4 +1,8 @@
 
+1.2 | 2017-10-25 02:19:49 +0200
+
+  * Release 1.2.
+
 1.1.2-1 | 2017-10-24 23:17:23 +0200
 
   * Caching credentials separately for each device.

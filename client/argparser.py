@@ -427,7 +427,7 @@ def createParser(config):
                         help="Show version of the API client software.")
     parser.add_argument("-d", "--debug", action="count", dest="debug_level",
                         help="Increase level of debugging output.")
-    parser.add_argument("-a", "--async", action="store_true", dest="async",
+    parser.add_argument("-a", "--async", action="store_true", dest="async_nowait",
                         help="Do not wait for asynchronous operations to finish.")
     parser.add_argument("-u", "--user", action="store", dest="user", default=user,
                         help="User name for authentication.")

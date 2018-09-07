@@ -1,4 +1,8 @@
 
+1.2-2 | 2018-09-06 17:44:16 -0700
+
+  * Change `async` argument variable name to not be a Python keyword. (Ian Gallagher)
+
 1.2 | 2017-10-25 02:19:49 +0200
 
   * Release 1.2.

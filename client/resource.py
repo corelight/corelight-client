@@ -307,7 +307,7 @@ def _processResponse(session, resource, response, schema, cache, data):
 
     ### Success, handle result.
 
-    if status == 202 and not session.arguments().async:
+    if status == 202 and not session.arguments().async_nowait:
         # Print the response string for information.
         msg = _responseString(resource, status, None)
 

@@ -291,7 +291,7 @@ class Session:
                 for line in response.content.splitlines():
                     client.util.debug("| " + line.decode("utf8"), level=debug_level)
 
-        if cert and not self._args.ssl_ca_cert:
+        if cert and not self._args.ssl_ca_cert and not self._args.ssl_no_verify_certificate and not self._args.ssl_no_verify_hostname:
             uid = response.headers.get("X-CORELIGHT-UID", None)
 
             if not uid:

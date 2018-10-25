@@ -105,7 +105,7 @@ class Session:
     # The joint requests.Session object used for all requests. Created on first use.
     _RequestsSession = None
 
-    def __init__(self, args):
+    def __init__(self, args, base_url):
         """
         Constructor.
 
@@ -113,6 +113,7 @@ class Session:
         command line options.
         """
         self._args = args
+        self._custom_port = urllib.parse.urlparse(base_url).port
 
         if not Session._RequestsSession:
             Session._RequestsSession = requests.Session()
@@ -234,6 +235,15 @@ class Session:
             auth = (self._args.user, self._args.password)
         else:
             auth = None
+
+        if self._custom_port:
+            # If the user specified a non-standard port, rewrite the local URL
+            # accordingly in case the Sensor-perceived port (via the
+            # self-describing API) deviates.
+            u = urllib.parse.urlparse(url)
+            url_parts = list(u)
+            url_parts[1] = "{}:{}".format(u.hostname, self._custom_port)
+            url = urllib.parse.urlunparse(url_parts)
 
         req = requests.Request(url=url, headers=self._requestHeaders(), auth=auth, **kwargs)
         prepared = Session._RequestsSession.prepare_request(req)

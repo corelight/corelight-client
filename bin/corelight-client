@@ -157,7 +157,7 @@ if scheme == "https" and sys.stdin.isatty() and sys.stdout.isatty():
             argv_pass2 = ["--password", args.password] + argv_pass2
 
 # Retrieve meta information from device.
-session = client.session.Session(args)
+session = client.session.Session(args, url)
 
 if args.cache:
     cache = args.cache

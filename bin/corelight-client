@@ -164,7 +164,7 @@ if args.cache:
 else:
     cache = (MetaCacheFileBase + "_" + device_id)
 
-meta = client.meta.load(session, url, cache)
+meta = client.meta.load(session, url, cache_file=cache)
 meta.save(cache)
 
 # Access worked, offer to save crendentials if entered interactively.

@@ -53,10 +53,12 @@ class Meta:
 
         path (str): The full path where to save the cache.
         """
+        cached_data = {
+            'cache-id': self._cache,
+            'resources': self._resources,
+        }
         with open(path, "w") as fp:
-            print("cache-id", self._cache, file=fp)
-            json.dump(self._resources, fp=fp, indent=2, sort_keys=True)
-            fp.close()
+            json.dump(cached_data, fp=fp, indent=2, sort_keys=True)
 
     @classmethod
     def load(cls, path):
@@ -72,8 +74,9 @@ class Meta:
 
         try:
             with open(path, "r") as fp:
-                meta._cache = fp.readline().split()[1]
-                meta._resources = json.load(fp=fp)
+                cached_data = json.load(fp=fp)
+            meta._resources = cached_data['resources']
+            meta._cache = cached_data['cache-id']
 
         except:
             # We just ignore any errors.

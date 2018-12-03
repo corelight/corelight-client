@@ -104,11 +104,11 @@ def load(session, base_url, force=False, cache_file=None):
         client.util.fatalError("URL not pointing to API base address", base_url)
 
     if cache_file and not force:
-        cache_file = Meta.load(cache_file)
+        cached_meta = Meta.load(cache_file)
 
-        if cache_file.cacheID() == cache:
+        if cached_meta.cacheID() == cache:
             # Same cache ID, can reuse cached meta data.
-            return cache_file
+            return cached_meta
 
     meta = Meta(cache)
 

@@ -53,10 +53,12 @@ class Meta:
 
         path (str): The full path where to save the cache.
         """
+        cached_data = {
+            'cache-id': self._cache,
+            'resources': self._resources,
+        }
         with open(path, "w") as fp:
-            print("cache-id", self._cache, file=fp)
-            json.dump(self._resources, fp=fp, indent=2, sort_keys=True)
-            fp.close()
+            json.dump(cached_data, fp=fp, indent=2, sort_keys=True)
 
     @classmethod
     def load(cls, path):
@@ -72,8 +74,9 @@ class Meta:
 
         try:
             with open(path, "r") as fp:
-                meta._cache = fp.readline().split()[1]
-                meta._resources = json.load(fp=fp)
+                cached_data = json.load(fp=fp)
+            meta._resources = cached_data['resources']
+            meta._cache = cached_data['cache-id']
 
         except:
             # We just ignore any errors.
@@ -104,11 +107,11 @@ def load(session, base_url, force=False, cache_file=None):
         client.util.fatalError("URL not pointing to API base address", base_url)
 
     if cache_file and not force:
-        cache_file = Meta.load(cache_file)
+        cached_meta = Meta.load(cache_file)
 
-        if cache_file.cacheID() == cache:
+        if cached_meta.cacheID() == cache:
             # Same cache ID, can reuse cached meta data.
-            return cache_file
+            return cached_meta
 
     meta = Meta(cache)
 

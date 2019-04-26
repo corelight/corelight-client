@@ -414,6 +414,7 @@ def createParser(config):
     """
 
     device = config.get("device", None)
+    fleet = config.get("fleet", None)
     user = config.get("user", None)
     password = config.get("password", None)
     ssl_ca_cert = config.get("ssl-ca-cert", None)
@@ -423,6 +424,10 @@ def createParser(config):
     parser = ComponentArgumentParser()
     parser.add_argument("-b", "--device", action="store", dest="device", default=device,
                         help="Name or IP address of your Corelight Sensor.")
+    parser.add_argument("--fleet", action="store", dest="fleet", default=fleet,
+                        help="Name or IP address of your Corelight Fleet Manager.")
+    parser.add_argument("--uid", action="store", dest="uid", default=None,
+                        help="The UID of your fleet managed sensor.")
     parser.add_argument("-v", "--version", action="store_true",
                         help="Show version of the API client software.")
     parser.add_argument("-d", "--debug", action="count", dest="debug_level",
@@ -433,6 +438,8 @@ def createParser(config):
                         help="User name for authentication.")
     parser.add_argument("-p", "--password", action="store", dest="password", default=password,
                         help="Password for authentication.")
+    parser.add_argument("-m", "--mfa", action="store", dest="mfa", default=None,
+                        help="2FA verification code for authentication.")
     parser.add_argument("--ssl-ca-cert", action="store", dest="ssl_ca_cert", default=ssl_ca_cert,
                         help="Path to CA certificate(s) for verifying device identity. Defaults to Corelight's internal CA. Specify 'system' for system's root store.")
     parser.add_argument("--ssl-no-verify-certificate", action="store_true", dest="ssl_no_verify_certificate", default=ssl_no_verify_certificate,

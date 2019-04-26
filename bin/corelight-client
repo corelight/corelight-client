@@ -8,6 +8,7 @@ import json
 import os
 import os.path
 import sys
+import re
 import urllib.parse
 
 import client.argparser
@@ -18,7 +19,8 @@ import client.session
 import client.util
 
 # URL to connect to.
-BaseURL = "{scheme}://{netloc}/api/"
+SensorBaseURL = "{scheme}://{netloc}/api/"
+FleetBaseURL = "{scheme}://{netloc}/fleet/"
 
 # User configuration file.
 ConfigFile = os.path.expanduser("~/.corelight-client.rc")
@@ -83,23 +85,41 @@ if args.version:
     print("{} {}".format(client.NAME, client.VERSION))
     sys.exit(0)
 
-if not args.device:
+if not args.device and not args.fleet:
     if "-h" in sys.argv or "--help" in sys.argv or "help" in sys.argv:
         parser.print_help()
     else:
-        print("You need to specify the address of your Corelight Sensor.")
+        print("You need to specify the address of your Corelight Sensor or Fleet Manager.")
 
     sys.exit(1)
 
 client.util.enableDebug(args.debug_level)
 
-if "://" in args.device:
-    base = urllib.parse.urlparse(args.device)
-    scheme = base.scheme
-    url = BaseURL.format(scheme=base.scheme, netloc=base.netloc)
+if args.fleet:
+    if "://" in args.fleet:
+        base = urllib.parse.urlparse(args.fleet)
+        scheme = base.scheme
+        url = FleetBaseURL.format(scheme=base.scheme, netloc=base.netloc)
+    else:
+        scheme = "https"
+        url = FleetBaseURL.format(scheme="https", netloc=args.fleet)
+
+    fleetLoginUrl = url
+
+    if args.uid:
+        if not re.search("^[0-9a-zA-Z-_]+$", args.uid):
+            print("The sensor uid '{}' is invalid".format(args.uid))
+            sys.exit(1)
+
+        url = client.util.appendUrl(url, "/v1/sensor/instance/{}/api".format(args.uid))
 else:
-    scheme = "https"
-    url = BaseURL.format(scheme="https", netloc=args.device)
+    if "://" in args.device:
+        base = urllib.parse.urlparse(args.device)
+        scheme = base.scheme
+        url = SensorBaseURL.format(scheme=base.scheme, netloc=base.netloc)
+    else:
+        scheme = "https"
+        url = SensorBaseURL.format(scheme="https", netloc=args.device)
 
 # Create a normalized version of the URL that we can use as a unique index for
 # the device.
@@ -158,6 +178,12 @@ if scheme == "https" and sys.stdin.isatty() and sys.stdout.isatty():
 
 # Retrieve meta information from device.
 session = client.session.Session(args)
+
+if fleetLoginUrl:
+    try:
+        session.performFleetLogin(fleetLoginUrl)
+    except Exception as e:
+        client.util.fatalError("Fleet login failed.", e)
 
 if args.cache:
     cache = args.cache

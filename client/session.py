@@ -140,7 +140,7 @@ class Session:
         fullUrl = client.util.appendUrl(baseUrl, "/v1/login")
 
         mfaToken = None
-        print(self._args)
+
         try:
             mfaToken = self._args.mfa
         except:

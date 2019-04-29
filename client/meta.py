@@ -128,7 +128,8 @@ def _loadResource(session, meta, url):
         return
 
     try:
-        (_, schema, _, data) = session.retrieveResource(url, method="OPTIONS", debug_level=2)
+        (res, schema, _, data) = session.retrieveResource(url, method="OPTIONS", debug_level=2)
+        res.raise_for_status()
     except client.session.SessionError as e:
         e.fatalError()
 

@@ -95,7 +95,7 @@ if not args.device and not args.fleet:
 
 client.util.enableDebug(args.debug_level)
 
-args.auth_base_url = None
+fleet_auth_base_url = None
 
 if args.fleet:
     if "://" in args.fleet:
@@ -106,7 +106,7 @@ if args.fleet:
         scheme = "https"
         url = FleetBaseURL.format(scheme="https", netloc=args.fleet)
 
-    args.auth_base_url = url
+    fleet_auth_base_url = url
 
     if args.uid:
         if not re.search("^[0-9a-zA-Z-_]+$", args.uid):
@@ -179,6 +179,7 @@ if scheme == "https" and sys.stdin.isatty() and sys.stdout.isatty():
             argv_pass2 = ["--password", args.password] + argv_pass2
 
 # Retrieve meta information from device.
+args.auth_base_url = fleet_auth_base_url
 session = client.session.Session(args)
 
 if args.cache:
@@ -199,6 +200,7 @@ client.argparser.populateParser(parser, meta)
 
 # Reparse command line arguments.
 args = parser.parse_args(argv_pass2)
+args.auth_base_url = fleet_auth_base_url
 
 session.setArguments(args)
 

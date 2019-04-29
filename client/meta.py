@@ -104,7 +104,10 @@ def load(session, base_url, force=False, cache_file=None):
         e.fatalError()
 
     if schema != "index":
-        client.util.fatalError("URL not pointing to API base address", base_url)
+        if data and 'message' in data:
+            client.util.fatalError(data['message'], base_url)
+        else:
+            client.util.fatalError("URL not pointing to API base address", base_url)
 
     if cache_file and not force:
         cached_meta = Meta.load(cache_file)

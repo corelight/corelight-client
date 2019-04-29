@@ -104,7 +104,7 @@ if args.fleet:
         scheme = "https"
         url = FleetBaseURL.format(scheme="https", netloc=args.fleet)
 
-    fleetLoginUrl = url
+    args.auth_base_url = url
 
     if args.uid:
         if not re.search("^[0-9a-zA-Z-_]+$", args.uid):
@@ -178,12 +178,6 @@ if scheme == "https" and sys.stdin.isatty() and sys.stdout.isatty():
 
 # Retrieve meta information from device.
 session = client.session.Session(args)
-
-if fleetLoginUrl:
-    try:
-        session.performFleetLogin(fleetLoginUrl)
-    except Exception as e:
-        client.util.fatalError("Fleet login failed.", e)
 
 if args.cache:
     cache = args.cache

@@ -439,7 +439,7 @@ def createParser(config):
     parser.add_argument("-p", "--password", action="store", dest="password", default=password,
                         help="Password for authentication.")
     parser.add_argument("-m", "--mfa", action="store", dest="mfa", default=None,
-                        help="2FA verification code for authentication.")
+                        help="2FA verification code for authentication. Use '-' to ask the user.")
     parser.add_argument("--ssl-ca-cert", action="store", dest="ssl_ca_cert", default=ssl_ca_cert,
                         help="Path to CA certificate(s) for verifying device identity. Defaults to Corelight's internal CA. Specify 'system' for system's root store.")
     parser.add_argument("--ssl-no-verify-certificate", action="store_true", dest="ssl_no_verify_certificate", default=ssl_no_verify_certificate,

@@ -265,6 +265,7 @@ class CommandArgumentParser(argparse.ArgumentParser):
         self._resource = None
         self._parent = None
         self._path = None
+        self.auth_base_url = None
 
         self._request_fields = []
         self._response_fields = []

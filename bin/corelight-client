@@ -95,6 +95,8 @@ if not args.device and not args.fleet:
 
 client.util.enableDebug(args.debug_level)
 
+args.auth_base_url = None
+
 if args.fleet:
     if "://" in args.fleet:
         base = urllib.parse.urlparse(args.fleet)

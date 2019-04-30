@@ -165,7 +165,7 @@ class Session:
                 verifyUrl = client.util.appendUrl(self._args.auth_base_url, "/v1/users/{}/2fa/verify".format(vals["id"]))
 
                 if mfaToken and mfaToken is "-" and sys.stdin.isatty() and sys.stdout.isatty():
-                    mfaToken = client.util.getInput("Verification Code")
+                    mfaToken = client.util.getInput("Verification Code", password=True)
                 else:
                     mfaToken = None
 

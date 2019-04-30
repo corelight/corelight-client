@@ -56,7 +56,6 @@ class _SSLAdapter(requests.adapters.HTTPAdapter):
 
         if not ssl_ca_cert:
             # Use Corelight root CA and disable hostname verification.
-            # We'll check the UID later.
             ssl_ca_cert = _CorelightRoot
             ssl_no_verify_hostname = True
 

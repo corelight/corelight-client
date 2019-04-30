@@ -163,7 +163,7 @@ class Session:
                 if not vals["id"]:
                     raise SessionError("No user id has been provided by the server.")
 
-                verifyUrl = client.util.appendUrl(baseUrl, "/v1/users/{}/2fa/verify".format(vals["id"]))
+                verifyUrl = client.util.appendUrl(self._args.auth_base_url, "/v1/users/{}/2fa/verify".format(vals["id"]))
 
                 if mfaToken and mfaToken is "-" and sys.stdin.isatty() and sys.stdout.isatty():
                     mfaToken = client.util.getInput("Verification Code")

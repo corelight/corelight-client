@@ -114,7 +114,7 @@ class Session:
         command line options.
         """
         self._args = args
-        self.bearer_token = None
+        self._bearer_token = None
 
         if not Session._RequestsSession:
             Session._RequestsSession = requests.Session()
@@ -150,14 +150,14 @@ class Session:
         except:
             mfaToken = None
 
-        if self._args.user and self._args.password and not self.bearer_token:
+        if self._args.user and self._args.password and not self._bearer_token:
             res = self._retrieveURL(fullUrl, json={"username": self._args.user, "password": self._args.password}, method="POST")
             res.raise_for_status()
             vals = res.json()
             if not vals or not vals["token"]:
                 raise SessionError("Server did not return a valid authentication bearer token. Please check the url and try again.")
 
-            self.bearer_token = vals["token"]
+            self._bearer_token = vals["token"]
 
             if vals and vals["settings"] and vals["settings"]["2fa.enabled"]:
                 if not vals["id"]:
@@ -180,7 +180,7 @@ class Session:
                 if not vals or not vals["token"]:
                     raise SessionError("Server did not return a valid authentication bearer token. Please check the url and try again.")
 
-                self.bearer_token = vals["token"]
+                self._bearer_token = vals["token"]
                 
 
     def retrieveResource(self, url, **kwargs):
@@ -217,7 +217,9 @@ class Session:
         considered a fatal error and execution be aborted.
         """
 
-        self._performFleetLogin(**kwargs)
+        if self._args.fleet:
+            self._performFleetLogin(**kwargs)
+
         response = self._retrieveURL(url, **kwargs)
         success = (response.status_code >= 200 and response.status_code < 300)
 
@@ -432,7 +434,7 @@ class Session:
             "Accept": "application/json"
             }
     
-        if self.bearer_token:
-            headers["Authorization"] = "Bearer {}".format(self.bearer_token)
+        if self._bearer_token:
+            headers["Authorization"] = "Bearer {}".format(self._bearer_token)
 
         return headers

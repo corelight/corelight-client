@@ -6,7 +6,7 @@ import getpass
 import sys
 
 # Debug level. See ``enableDebug()`` for values.
-_DebugLevel = 10
+_DebugLevel = 0
 
 def fatalError(msg, arg=None):
     """Reports a fatal error and aborts the process."""

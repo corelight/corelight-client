@@ -350,6 +350,8 @@ class Session:
                 for line in response.content.splitlines():
                     client.util.debug("| " + line.decode("utf8"), level=debug_level)
 
+        # This check can help ensure that the SSL certificate wasn't accidently copied to another sensor.
+        # We do this by verifying that the SSL cert matches the identity that the sensor believes it should be.
         if cert and not self._args.ssl_ca_cert and not self._args.ssl_no_verify_certificate and not self._args.ssl_no_verify_hostname and not self._args.fleet:
             uid = response.headers.get("X-CORELIGHT-UID", None)
 

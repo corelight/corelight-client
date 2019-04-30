@@ -417,6 +417,7 @@ def createParser(config):
     fleet = config.get("fleet", None)
     user = config.get("user", None)
     password = config.get("password", None)
+    mfa = config.get("mfa", None)
     ssl_ca_cert = config.get("ssl-ca-cert", None)
     ssl_no_verify_hostname = config.get("ssl-no-verify-hostname", False)
     ssl_no_verify_certificate = config.get("ssl-no-verify-certificate", False)
@@ -438,7 +439,7 @@ def createParser(config):
                         help="User name for authentication.")
     parser.add_argument("-p", "--password", action="store", dest="password", default=password,
                         help="Password for authentication.")
-    parser.add_argument("-m", "--mfa", action="store", dest="mfa", default=None,
+    parser.add_argument("-m", "--mfa", action="store", dest="mfa", default=mfa,
                         help="2FA verification code for authentication. Use '-' to ask the user.")
     parser.add_argument("--ssl-ca-cert", action="store", dest="ssl_ca_cert", default=ssl_ca_cert,
                         help="Path to CA certificate(s) for verifying device identity. Defaults to Corelight's internal CA. Specify 'system' for system's root store.")

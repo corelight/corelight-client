@@ -34,9 +34,14 @@ def read(path, config):
             except ValueError:
                 client.util.fatalError("cannot parse line {} in configuration file".format(cnt), path)
 
-            for option in ("device", "user", "password", "ssl-ca-cert", "ssl-no-verify-hostname", "ssl-no-verify-certificate", "brobox"):
+            for option in ("device", "user", "password", "ssl-ca-cert", "ssl-no-verify-hostname", "ssl-no-verify-certificate", "brobox", "fleet", "uid", "mfa"):
                 if k.lower() == option:
                     config[option] = v
+                    # If another configuration file overrides our value
+                    # then we have to delete the current value from the dict.
+                    # e.g. global verses user configuration.
+                    if v is "":
+                        del config[option]
                     break
 
             else:

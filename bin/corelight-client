@@ -23,6 +23,9 @@ SensorBaseURL = "{scheme}://{netloc}/api/"
 FleetBaseURL = "{scheme}://{netloc}/fleet/"
 
 # User configuration file.
+ConfigFileGlobal = "/etc/corelight-client.rc"
+
+# User configuration file.
 ConfigFile = os.path.expanduser("~/.corelight-client.rc")
 
 # Legacy configuration file, to be removed.
@@ -68,6 +71,7 @@ if os.path.exists(ConfigFileLegacy):
       file=sys.stderr)
     client.configuration.read(ConfigFileLegacy, config)
 
+client.configuration.read(ConfigFileGlobal, config)
 client.configuration.read(ConfigFile, config)
 
 # Build initial bare-bones argument parser without any Corelight Sensor meta information.
@@ -85,11 +89,11 @@ if args.version:
     print("{} {}".format(client.NAME, client.VERSION))
     sys.exit(0)
 
-if not args.device and not args.fleet:
+if (not args.device and not args.fleet) or (args.device and args.fleet):
     if "-h" in sys.argv or "--help" in sys.argv or "help" in sys.argv:
         parser.print_help()
     else:
-        print("You need to specify the address of your Corelight Sensor or Fleet Manager.")
+        print("You need to specify the address of either your Corelight Sensor or your Corelight Fleet Manager.")
 
     sys.exit(1)
 
@@ -130,6 +134,13 @@ device_id = url.replace("://", "_").replace("/", "_").replace(":", "_").lower()
 if device_id.endswith("_"):
     device_id = device_id[:-1]
 
+if args.fleet:
+    credentials_id = fleet_auth_base_url.replace("://", "_").replace("/", "_").replace(":", "_").lower()
+    if credentials_id.endswith("_"):
+        credentials_id = credentials_id[:-1]
+else:
+    credentials_id = device_id
+
 # Legacy BroBox support. To be removed.
 if os.path.exists(CredentialsFileLegacy) and not os.path.exists(CredentialsFile):
     print("""Note: The credentials file {} is deprecated and support will be
@@ -142,7 +153,7 @@ if os.path.exists(CredentialsFileLegacy) and not os.path.exists(CredentialsFile)
 
 else:
     # New format indexed by device ID.
-    creds = client.configuration.readCredentials(CredentialsFile, device_id)
+    creds = client.configuration.readCredentials(CredentialsFile, credentials_id)
 
 if creds[0] and not args.user:
     args.user = creds[0]
@@ -193,7 +204,7 @@ meta.save(cache)
 # Access worked, offer to save crendentials if entered interactively.
 if new_credentials > 0 and (args.user and args.password):
     if client.util.getInput("Save credentials? (yes/no)") == "yes":
-        client.configuration.saveCredentials(CredentialsFile, args, device_id)
+        client.configuration.saveCredentials(CredentialsFile, args, credentials_id)
 
 # Now extend the argument parser with all the meta information.
 client.argparser.populateParser(parser, meta)

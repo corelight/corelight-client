@@ -48,6 +48,29 @@ def debug(msg, level=1):
     if _DebugLevel >= level:
         print(msg, file=sys.stderr)
 
+def appendUrl(baseUrl, appendedPath):
+    """
+    Concatinates 2 url paths, eliminating the trailing / from the first one, if required.
+
+    This function is not compatible with query paramters or anything other than urlpaths.
+
+    baseUrl (str): The base url to be appended to.
+
+    appendedPath (str): The appended portion of the path.
+
+    Returns: A new url with the full path.
+    """
+    if not baseUrl or len(baseUrl) <= 0:
+        return appendedPath
+
+    if not appendedPath or len(appendedPath) <= 0:
+        return baseUrl
+
+    if baseUrl.endswith("/") and appendedPath.startswith("/"):
+        baseUrl = baseUrl[:len(baseUrl)-1]
+
+    return baseUrl + appendedPath
+
 def formatTuples(tuples):
     """
     Renders a list of 2-tuples into a column-aligned string format.

@@ -2,7 +2,7 @@
 .. _corelight-client:
 
 .. Version number is filled in automatically.
-.. |version| replace:: 1.4.1
+.. |version| replace:: 1.5
 
 ====================================
 Corelight Sensor Command Line Client
@@ -112,14 +112,23 @@ the client can connect, and authenticate, to the device.)
 Global Options
 --------------
 
-The ``corelight-client`` supports the following global command-line
-options with all operations:
+The ``corelight-client`` supports the following global command line
+options. The ``--device`` and ``--fleet`` options should be used
+mutually exclusively from each other. All other options apply to all
+requests:
 
 ``--async``
     Does not wait for asynchronous commands to complete before exiting.
 
 ``--device``
-    Specifies the network address of the Corelight Sensor device.
+    Specifies the network address of a Corelight Sensor device.
+
+``--fleet``
+    Specifies the network address of a Corelight Fleet Manager.
+
+``--uid``
+    Specifies the UID of a Corelight Sensor managed through the
+    specified Corelight Fleet Manager.
 
 ``--cache=<file>``
     Sets a custom file for caching Corelight Sensor meta data.
@@ -129,6 +138,10 @@ options with all operations:
 
 ``--password``
     Specifies the password for authentication.
+
+``--mfa``
+    Specifies the 2FA verification code for authentication with a
+    Corelight Fleet Manager. Use '-' to ask the user.
 
 ``--ssl-ca-cert``
     Specifies a file containing a custom SSL CA certificate for
@@ -158,13 +171,23 @@ The file must consist of lines ``<key>=<value>``. Comments starting
 with ``#`` are ignored. ``corelight-client`` support the following keys:
 
 ``device``
-    The network address of the Corelight Sensor device.
+    The network address of a Corelight Sensor device.
+
+``fleet``
+    The network address of a Corelight Fleet Manager.
+
+``uid``
+    The UID of a Corelight Sensor managed through the specified Corelight Fleet Manager.
 
 ``user``
     The user name for authentication.
 
 ``password``
     The password for authentication.
+
+``mfa``
+    The 2FA verification code for authentication with a Corelight
+    Fleet Manager. Use '-' to ask the user.
 
 ``ssl-ca-cert``
     A file containing a custom SSL CA certificate for validating the device's

@@ -104,7 +104,10 @@ def load(session, base_url, force=False, cache_file=None):
         e.fatalError()
 
     if schema != "index":
-        client.util.fatalError("URL not pointing to API base address", base_url)
+        if data and 'message' in data:
+            client.util.fatalError(data['message'], base_url)
+        else:
+            client.util.fatalError("URL not pointing to API base address", base_url)
 
     if cache_file and not force:
         cached_meta = Meta.load(cache_file)
@@ -125,7 +128,8 @@ def _loadResource(session, meta, url):
         return
 
     try:
-        (_, schema, _, data) = session.retrieveResource(url, method="OPTIONS", debug_level=2)
+        (res, schema, _, data) = session.retrieveResource(url, method="OPTIONS", debug_level=2)
+        res.raise_for_status()
     except client.session.SessionError as e:
         e.fatalError()
 

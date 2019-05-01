@@ -8,6 +8,7 @@ import json
 import os
 import os.path
 import sys
+import re
 import urllib.parse
 
 import client.argparser
@@ -18,7 +19,11 @@ import client.session
 import client.util
 
 # URL to connect to.
-BaseURL = "{scheme}://{netloc}/api/"
+SensorBaseURL = "{scheme}://{netloc}/api/"
+FleetBaseURL = "{scheme}://{netloc}/fleet/"
+
+# User configuration file.
+ConfigFileGlobal = "/etc/corelight-client.rc"
 
 # User configuration file.
 ConfigFile = os.path.expanduser("~/.corelight-client.rc")
@@ -66,6 +71,7 @@ if os.path.exists(ConfigFileLegacy):
       file=sys.stderr)
     client.configuration.read(ConfigFileLegacy, config)
 
+client.configuration.read(ConfigFileGlobal, config)
 client.configuration.read(ConfigFile, config)
 
 # Build initial bare-bones argument parser without any Corelight Sensor meta information.
@@ -83,23 +89,43 @@ if args.version:
     print("{} {}".format(client.NAME, client.VERSION))
     sys.exit(0)
 
-if not args.device:
+if (not args.device and not args.fleet) or (args.device and args.fleet):
     if "-h" in sys.argv or "--help" in sys.argv or "help" in sys.argv:
         parser.print_help()
     else:
-        print("You need to specify the address of your Corelight Sensor.")
+        print("You need to specify the address of either your Corelight Sensor or your Corelight Fleet Manager.")
 
     sys.exit(1)
 
 client.util.enableDebug(args.debug_level)
 
-if "://" in args.device:
-    base = urllib.parse.urlparse(args.device)
-    scheme = base.scheme
-    url = BaseURL.format(scheme=base.scheme, netloc=base.netloc)
+fleet_auth_base_url = None
+
+if args.fleet:
+    if "://" in args.fleet:
+        base = urllib.parse.urlparse(args.fleet)
+        scheme = base.scheme
+        url = FleetBaseURL.format(scheme=base.scheme, netloc=base.netloc)
+    else:
+        scheme = "https"
+        url = FleetBaseURL.format(scheme="https", netloc=args.fleet)
+
+    fleet_auth_base_url = url
+
+    if args.uid:
+        if not re.search("^[0-9a-zA-Z-_]+$", args.uid):
+            print("The sensor uid '{}' is invalid".format(args.uid))
+            sys.exit(1)
+
+        url = client.util.appendUrl(url, "/v1/sensor/instance/{}/api".format(args.uid))
 else:
-    scheme = "https"
-    url = BaseURL.format(scheme="https", netloc=args.device)
+    if "://" in args.device:
+        base = urllib.parse.urlparse(args.device)
+        scheme = base.scheme
+        url = SensorBaseURL.format(scheme=base.scheme, netloc=base.netloc)
+    else:
+        scheme = "https"
+        url = SensorBaseURL.format(scheme="https", netloc=args.device)
 
 # Create a normalized version of the URL that we can use as a unique index for
 # the device.
@@ -107,6 +133,13 @@ device_id = url.replace("://", "_").replace("/", "_").replace(":", "_").lower()
 
 if device_id.endswith("_"):
     device_id = device_id[:-1]
+
+if args.fleet:
+    credentials_id = fleet_auth_base_url.replace("://", "_").replace("/", "_").replace(":", "_").lower()
+    if credentials_id.endswith("_"):
+        credentials_id = credentials_id[:-1]
+else:
+    credentials_id = device_id
 
 # Legacy BroBox support. To be removed.
 if os.path.exists(CredentialsFileLegacy) and not os.path.exists(CredentialsFile):
@@ -120,7 +153,7 @@ if os.path.exists(CredentialsFileLegacy) and not os.path.exists(CredentialsFile)
 
 else:
     # New format indexed by device ID.
-    creds = client.configuration.readCredentials(CredentialsFile, device_id)
+    creds = client.configuration.readCredentials(CredentialsFile, credentials_id)
 
 if creds[0] and not args.user:
     args.user = creds[0]
@@ -157,6 +190,7 @@ if scheme == "https" and sys.stdin.isatty() and sys.stdout.isatty():
             argv_pass2 = ["--password", args.password] + argv_pass2
 
 # Retrieve meta information from device.
+args.auth_base_url = fleet_auth_base_url
 session = client.session.Session(args)
 
 if args.cache:
@@ -170,13 +204,14 @@ meta.save(cache)
 # Access worked, offer to save crendentials if entered interactively.
 if new_credentials > 0 and (args.user and args.password):
     if client.util.getInput("Save credentials? (yes/no)") == "yes":
-        client.configuration.saveCredentials(CredentialsFile, args, device_id)
+        client.configuration.saveCredentials(CredentialsFile, args, credentials_id)
 
 # Now extend the argument parser with all the meta information.
 client.argparser.populateParser(parser, meta)
 
 # Reparse command line arguments.
 args = parser.parse_args(argv_pass2)
+args.auth_base_url = fleet_auth_base_url
 
 session.setArguments(args)
 

@@ -4,6 +4,7 @@
 
 import os
 import ssl
+import sys
 import urllib.parse
 
 import requests
@@ -55,7 +56,6 @@ class _SSLAdapter(requests.adapters.HTTPAdapter):
 
         if not ssl_ca_cert:
             # Use Corelight root CA and disable hostname verification.
-            # We'll check the UID later.
             ssl_ca_cert = _CorelightRoot
             ssl_no_verify_hostname = True
 
@@ -113,6 +113,7 @@ class Session:
         command line options.
         """
         self._args = args
+        self._bearer_token = None
 
         if not Session._RequestsSession:
             Session._RequestsSession = requests.Session()
@@ -130,6 +131,56 @@ class Session:
         with the session.
         """
         self._args = args
+
+    def _performFleetLogin(self, **kwargs):
+        """
+        Performs fleet authentication
+        """
+
+        if self._args.auth_base_url:
+            fullUrl = client.util.appendUrl(self._args.auth_base_url, "/v1/login")
+        else:
+            return
+
+        mfaToken = None
+
+        try:
+            mfaToken = self._args.mfa
+        except:
+            mfaToken = None
+
+        if self._args.user and self._args.password and not self._bearer_token:
+            res = self._retrieveURL(fullUrl, json={"username": self._args.user, "password": self._args.password}, method="POST")
+            res.raise_for_status()
+            vals = res.json()
+            if not vals or not vals["token"]:
+                raise SessionError("Server did not return a valid authentication bearer token. Please check the url and try again.")
+
+            self._bearer_token = vals["token"]
+
+            if vals and vals["settings"] and vals["settings"]["2fa.enabled"]:
+                if not vals["id"]:
+                    raise SessionError("No user id has been provided by the server.")
+
+                verifyUrl = client.util.appendUrl(self._args.auth_base_url, "/v1/users/{}/2fa/verify".format(vals["id"]))
+
+                if mfaToken and mfaToken is "-" and sys.stdin.isatty() and sys.stdout.isatty():
+                    mfaToken = client.util.getInput("Verification Code", password=True)
+                else:
+                    mfaToken = None
+
+                if not mfaToken:
+                    raise SessionError("No 2FA token has been provided. Please provide a proper 2FA token and try again.")
+
+                res = self._retrieveURL(verifyUrl, json={"passcode": mfaToken}, method="POST")
+                res.raise_for_status()
+                vals = res.json()
+
+                if not vals or not vals["token"]:
+                    raise SessionError("Server did not return a valid authentication bearer token. Please check the url and try again.")
+
+                self._bearer_token = vals["token"]
+
 
     def retrieveResource(self, url, **kwargs):
         """
@@ -164,6 +215,10 @@ class Session:
         raises a ``SessionError`` exception. Usually this should be
         considered a fatal error and execution be aborted.
         """
+
+        if self._args.fleet:
+            self._performFleetLogin(**kwargs)
+
         response = self._retrieveURL(url, **kwargs)
         success = (response.status_code >= 200 and response.status_code < 300)
 
@@ -230,12 +285,16 @@ class Session:
         except KeyError:
             debug_level = 1
 
-        if self._args.user and self._args.password:
+        if self._args.user and self._args.password and not self._args.fleet:
             auth = (self._args.user, self._args.password)
         else:
             auth = None
 
-        req = requests.Request(url=url, headers=self._requestHeaders(), auth=auth, **kwargs)
+        if auth:
+            req = requests.Request(url=url, headers=self._requestHeaders(), auth=auth, **kwargs)
+        else:
+            req = requests.Request(url=url, headers=self._requestHeaders(), **kwargs)
+
         prepared = Session._RequestsSession.prepare_request(req)
 
         if client.util.debugLevel():
@@ -258,14 +317,14 @@ class Session:
 
         except requests.exceptions.SSLError as e:
             u = urllib.parse.urlparse(url)
-            raise SessionError("cannot connect to Corelight Sensor at {}. {}".format(u.netloc, e))
+            raise SessionError("cannot connect to Corelight device at {}. {}".format(u.netloc, e))
 
         except requests.ConnectionError as e:
             u = urllib.parse.urlparse(url)
-            raise SessionError("cannot connect to Corelight Sensor at {}".format(u.netloc))
+            raise SessionError("cannot connect to Corelight device at {}".format(u.netloc))
 
         except Exception as e:
-            raise SessionError("cannot retrieve URL from Corelight Sensor", e)
+            raise SessionError("cannot retrieve URL from Corelight device", e)
 
         # Available only for SSL connections.
         try:
@@ -291,7 +350,9 @@ class Session:
                 for line in response.content.splitlines():
                     client.util.debug("| " + line.decode("utf8"), level=debug_level)
 
-        if cert and not self._args.ssl_ca_cert and not self._args.ssl_no_verify_certificate and not self._args.ssl_no_verify_hostname:
+        # This check can help ensure that the SSL certificate wasn't accidently copied to another sensor.
+        # We do this by verifying that the SSL cert matches the identity that the sensor believes it should be.
+        if cert and not self._args.ssl_ca_cert and not self._args.ssl_no_verify_certificate and not self._args.ssl_no_verify_hostname and not self._args.fleet:
             uid = response.headers.get("X-CORELIGHT-UID", None)
 
             if not uid:
@@ -369,7 +430,12 @@ class Session:
         Returns a pre-populated dictionary of headers we add to all
         outgoing HTTP requests.
         """
-        return {
+        headers = {
             "User-Agent": "{} v{}".format(client.NAME, client.VERSION),
             "Accept": "application/json"
             }
+
+        if self._bearer_token:
+            headers["Authorization"] = "Bearer {}".format(self._bearer_token)
+
+        return headers

@@ -206,7 +206,8 @@ if args.user and args.password:
     auth_schemes_to_use = auth_schemes_to_use + [ AUTH_TYPE_PASSWORD ]
 
 if can_use_password_interactive:
-    auth_schemes_to_use = auth_schemes_to_use + [ AUTH_TYPE_PASSWORD_INTERACTIVE ]
+    # Allow 3 tries
+    auth_schemes_to_use = auth_schemes_to_use + [ AUTH_TYPE_PASSWORD_INTERACTIVE, AUTH_TYPE_PASSWORD_INTERACTIVE, AUTH_TYPE_PASSWORD_INTERACTIVE ]
 
 if len(auth_schemes_to_use) == 0:
     auth_schemes_to_use = auth_schemes_to_use + [ AUTH_TYPE_NONE ]
@@ -223,7 +224,7 @@ else:
 # Authenticate and load API metadata
 new_credential_argv = []
 
-for i in range(len(auth_schemes_to_use)):
+for i in range(len(auth_schemes_to_use)):    
     current_auth_scheme = auth_schemes_to_use[i]
     has_next_auth_scheme = (i + 1) < len(auth_schemes_to_use)
     try:
@@ -241,6 +242,7 @@ for i in range(len(auth_schemes_to_use)):
         meta = client.meta.load(session, url, cache_file=cache)
 
         # We succeeded at getting metadata. break.
+        client.util.debug("Authentication succeeded ({})".format(current_auth_scheme))
         break
     except client.session.SessionError as e:
         if e.status_code == 401:
@@ -250,7 +252,8 @@ for i in range(len(auth_schemes_to_use)):
             # Clear out the invalid credentials for the next iteration
             if AUTH_TYPE_BEARER_TOKEN == current_auth_scheme:
                 args.bearer_token = None
-            elif AUTH_TYPE_PASSWORD == current_auth_scheme:
+            elif AUTH_TYPE_PASSWORD == current_auth_scheme or AUTH_TYPE_PASSWORD_INTERACTIVE == current_auth_scheme:
+                new_credential_argv = []
                 if not username_is_explicit:
                     args.user = None
                 if not password_is_explicit:
@@ -268,13 +271,19 @@ elif len(cached_credential_argv) > 0:
 # Access worked, offer to save crendentials if entered interactively.
 if len(new_credential_argv) > 0 and (args.user and args.password) and not args.no_password_save and not args.noblock:
     if cached_creds[client.configuration.CRED_BEARER_OFFSET] and not cached_creds[client.configuration.CRED_USER_OFFSET] and not cached_creds[client.configuration.CRED_PASS_OFFSET]:
+        # Just update the bearer token in this case.
+        client.util.debug("Updating autorization bearer token")
+        save_credentials = True
         include_password = False
-    if client.util.getInput("Save credentials? Please note that credentials will be saved in plain text under '{}'. (yes/no)".format(CredentialsFile)) == "yes":
+    elif client.util.getInput("Save credentials? Please note that credentials will be saved in plain text under '{}'. (yes/no)".format(CredentialsFile)) == "yes":
+        save_credentials = True
         if args.bearer_token:
             include_password = client.util.getInput("Include password? Authentication tokens will only be valid until expiry. (yes/no)") == "yes"
         else:
-            include_password = False
+            # For systems (e.g. sensors) where we only have a password, that is all we can save.
+            include_password = True
 
+    if save_credentials:
         client.configuration.saveCredentials(CredentialsFile, args, credentials_id, include_password)
 
 # Now extend the argument parser with all the meta information.

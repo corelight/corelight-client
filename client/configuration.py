@@ -8,6 +8,10 @@ import sys
 
 import client.util
 
+CRED_USER_OFFSET = 0
+CRED_PASS_OFFSET = 1
+CRED_BEARER_OFFSET = 2
+
 def read(path, config):
     """
     Read user configuration file.
@@ -34,7 +38,7 @@ def read(path, config):
             except ValueError:
                 client.util.fatalError("cannot parse line {} in configuration file".format(cnt), path)
 
-            for option in ("noblock", "device", "user", "password", "ssl-ca-cert", "ssl-no-verify-hostname", "ssl-no-verify-certificate", "brobox", "fleet", "uid", "mfa", "bearer-token"):
+            for option in ("noblock", "device", "user", "password", "ssl-ca-cert", "ssl-no-verify-hostname", "ssl-no-verify-certificate", "brobox", "fleet", "uid", "mfa", "bearer-token", "no-save-password"):
                 if k.lower() == option:
                     config[option] = v
                     # If another configuration file overrides our value

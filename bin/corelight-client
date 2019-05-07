@@ -164,23 +164,25 @@ if os.path.exists(CredentialsFileLegacy) and not os.path.exists(CredentialsFile)
     # Legacy format that doesn't index by device.
     d = {}
     client.configuration.read(CredentialsFileLegacy, d)
-    creds = (d.get("user", None), d.get("password", None))
+    cached_creds = (d.get("user", None), d.get("password", None), None)
 
 else:
     # New format indexed by device ID.
-    creds = client.configuration.readCredentials(CredentialsFile, credentials_id)
+    cached_creds = client.configuration.readCredentials(CredentialsFile, credentials_id)
 
-if creds[0] and not args.user:
-    args.user = creds[0]
-    argv_pass2 = ["--user", args.user] + argv_pass2
+cached_credential_argv = []
 
-if creds[1] and not args.password:
-    args.password = creds[1]
-    argv_pass2 = ["--password", args.password] + argv_pass2
+if cached_creds[client.configuration.CRED_USER_OFFSET] and not args.user:
+    args.user = cached_creds[client.configuration.CRED_USER_OFFSET]
+    cached_credential_argv = ["--user", args.user] + cached_credential_argv
 
-if creds[2] and not args.bearer_token and args.fleet:
-    args.bearer_token = creds[2]
-    argv_pass2 = ["--bearer", args.bearer_token] + argv_pass2
+if cached_creds[client.configuration.CRED_PASS_OFFSET] and not args.password:
+    args.password = cached_creds[client.configuration.CRED_PASS_OFFSET]
+    cached_credential_argv = ["--password", args.password] + cached_credential_argv
+
+if cached_creds[client.configuration.CRED_BEARER_OFFSET] and not args.bearer_token and args.fleet:
+    args.bearer_token = cached_creds[client.configuration.CRED_BEARER_OFFSET]
+    cached_credential_argv = ["--bearer", args.bearer_token] + cached_credential_argv
 
 # Create directory for persistent state.
 if not os.path.isdir(StateDir):
@@ -194,6 +196,7 @@ if not os.path.isdir(StateDir):
 AUTH_TYPE_BEARER_TOKEN = 1
 AUTH_TYPE_PASSWORD = 2
 AUTH_TYPE_PASSWORD_INTERACTIVE = 3
+AUTH_TYPE_NONE = 4
 
 auth_schemes_to_use = []
 if args.bearer_token and args.fleet:
@@ -204,6 +207,9 @@ if args.user and args.password:
 
 if can_use_password_interactive:
     auth_schemes_to_use = auth_schemes_to_use + [ AUTH_TYPE_PASSWORD_INTERACTIVE ]
+
+if len(auth_schemes_to_use) == 0:
+    auth_schemes_to_use = auth_schemes_to_use + [ AUTH_TYPE_NONE ]
 
 # Retrieve meta information from device.
 args.auth_base_url = fleet_auth_base_url
@@ -221,10 +227,16 @@ for i in range(len(auth_schemes_to_use)):
     current_auth_scheme = auth_schemes_to_use[i]
     has_next_auth_scheme = (i + 1) < len(auth_schemes_to_use)
     try:
+        # If we are in password interactive mode, we need to
+        # prompt the user now.
         if AUTH_TYPE_PASSWORD_INTERACTIVE == current_auth_scheme:
             new_credential_argv = client.util.promptUserCredentials(args)
 
+        # Fetch the metadata
         meta = client.meta.load(session, url, cache_file=cache)
+
+        # We have passed authentication. Break.
+        break
     except client.session.SessionError as e:
         if e.status_code == 401 and has_next_auth_scheme:
             # Clear out the invalid credentials for the next iteration
@@ -240,10 +252,22 @@ for i in range(len(auth_schemes_to_use)):
 
 meta.save(cache)
 
+if len(new_credential_argv) > 0:
+    argv_pass2 = new_credential_argv + argv_pass2
+elif len(cached_credential_argv) > 0:
+    argv_pass2 = cached_credential_argv + argv_pass2
+
 # Access worked, offer to save crendentials if entered interactively.
-if new_credentials > 0 and (args.user and args.password):
-    if client.util.getInput("Save credentials? Please note that credentials will be saved in plain text. (yes/no)") == "yes":
-        client.configuration.saveCredentials(CredentialsFile, args, credentials_id)
+if len(new_credential_argv) > 0 and (args.user and args.password) and not args.no_password_save and not args.noblock:
+    if cached_creds[client.configuration.CRED_BEARER_OFFSET] and not cached_creds[client.configuration.CRED_USER_OFFSET] and not cached_creds[client.configuration.CRED_PASS_OFFSET]:
+        include_password = False
+    if client.util.getInput("Save credentials? Please note that credentials will be saved in plain text under '{}'. (yes/no)".format(CredentialsFile)) == "yes":
+        if args.bearer_token:
+            include_password = client.util.getInput("Include password? Authentication tokens will only be valid until expiry. (yes/no)") == "yes"
+        else:
+            include_password = False
+
+        client.configuration.saveCredentials(CredentialsFile, args, credentials_id, include_password)
 
 # Now extend the argument parser with all the meta information.
 client.argparser.populateParser(parser, meta)

@@ -161,6 +161,9 @@ class Session:
                 raise SessionError("Server did not return a valid authentication bearer token. Please check the url and try again.")
 
             bearer_token = vals["token"]
+            
+            if vals and "settings" in vals and "password.cache.disabled" in vals["settings"] and vals["settings"]["password.cache.disabled"]:
+                self._args.no_password_save = True
 
             if vals and vals["settings"] and vals["settings"]["2fa.enabled"]:
                 if not vals["id"]:

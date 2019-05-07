@@ -34,6 +34,7 @@ def _wrap(txt):
 _re_dquotes = re.compile("``([^`]+)``")
 _re_squotes = re.compile("`([^`]+)`")
 _re_backticks = re.compile("``([^']+)''")
+_false_equivalent_strings = [ "False", "false", "0", "FALSE" ]
 
 def _display(txt):
     """
@@ -414,8 +415,12 @@ def createParser(config):
     """
 
     noblock = config.get("noblock", False)
-    if noblock == "false" or noblock == "False" or noblock == "0":
+    if noblock in _false_equivalent_strings:
         noblock = False
+
+    no_password_save = config.get("no-password-save", False)
+    if no_password_save in _false_equivalent_strings:
+        no_password_save = False
 
     device = config.get("device", None)
     fleet = config.get("fleet", None)
@@ -431,6 +436,8 @@ def createParser(config):
     parser = ComponentArgumentParser()
     parser.add_argument("--noblock", action="store_true", dest="noblock", default=noblock,
                         help="Assume a non-interactive shell and do not prompt the user for input.")
+    parser.add_argument("--no-password-save", action="store_true", dest="no_password_save", default=no_password_save,
+                    help="Do not prompt to save password.")
     parser.add_argument("-b", "--device", action="store", dest="device", default=device,
                         help="Name or IP address of your Corelight Sensor.")
     parser.add_argument("--fleet", action="store", dest="fleet", default=fleet,

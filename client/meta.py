@@ -98,10 +98,7 @@ def load(session, base_url, force=False, cache_file=None):
 
     cache_file (str): File where to load cached meta data from if it exists.
     """
-    try:
-        (_, schema, cache, data) = session.retrieveResource(base_url, debug_level=2)
-    except client.session.SessionError as e:
-        e.fatalError()
+    (_, schema, cache, data) = session.retrieveResource(base_url, debug_level=2)
 
     if schema != "index":
         if data and 'message' in data:

@@ -446,7 +446,7 @@ def createParser(config):
                         help="The UID of your fleet managed sensor.")
     parser.add_argument("-v", "--version", action="store_true",
                         help="Show version of the API client software.")
-    parser.add_argument("-d", "--debug", action="count", dest="debug_level",
+    parser.add_argument("-d", "--debug", action="count", dest="debug_level", default=client.util.debugLevel(),
                         help="Increase level of debugging output.")
     parser.add_argument("-a", "--async", action="store_true", dest="async_nowait",
                         help="Do not wait for asynchronous operations to finish.")

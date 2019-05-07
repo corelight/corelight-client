@@ -193,10 +193,10 @@ if not os.path.isdir(StateDir):
         client.util.fatalError("cannot create directory '{}'".format(StateDir), e)
 
 # Determine the authentication methods we should use
-AUTH_TYPE_BEARER_TOKEN = 1
-AUTH_TYPE_PASSWORD = 2
-AUTH_TYPE_PASSWORD_INTERACTIVE = 3
-AUTH_TYPE_NONE = 4
+AUTH_TYPE_BEARER_TOKEN = "Bearer Token"
+AUTH_TYPE_PASSWORD = "Password"
+AUTH_TYPE_PASSWORD_INTERACTIVE = "Password Interactive"
+AUTH_TYPE_NONE = "None"
 
 auth_schemes_to_use = []
 if args.bearer_token and args.fleet:
@@ -227,6 +227,11 @@ for i in range(len(auth_schemes_to_use)):
     current_auth_scheme = auth_schemes_to_use[i]
     has_next_auth_scheme = (i + 1) < len(auth_schemes_to_use)
     try:
+        auth_mesg = "Trying next authentication method ({})".format(current_auth_scheme)
+        if i > 0:
+            print(auth_mesg, file=sys.stderr)
+        else:
+            client.util.debug(auth_mesg, 1)
         # If we are in password interactive mode, we need to
         # prompt the user now.
         if AUTH_TYPE_PASSWORD_INTERACTIVE == current_auth_scheme:
@@ -235,9 +240,12 @@ for i in range(len(auth_schemes_to_use)):
         # Fetch the metadata
         meta = client.meta.load(session, url, cache_file=cache)
 
-        # We have passed authentication. Break.
+        # We succeeded at getting metadata. break.
         break
     except client.session.SessionError as e:
+        if e.status_code == 401:
+            client.util.error("Authentication method failed", current_auth_scheme)
+
         if e.status_code == 401 and has_next_auth_scheme:
             # Clear out the invalid credentials for the next iteration
             if AUTH_TYPE_BEARER_TOKEN == current_auth_scheme:

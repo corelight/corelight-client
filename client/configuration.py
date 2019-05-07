@@ -34,7 +34,7 @@ def read(path, config):
             except ValueError:
                 client.util.fatalError("cannot parse line {} in configuration file".format(cnt), path)
 
-            for option in ("device", "user", "password", "ssl-ca-cert", "ssl-no-verify-hostname", "ssl-no-verify-certificate", "brobox", "fleet", "uid", "mfa"):
+            for option in ("noblock", "device", "user", "password", "ssl-ca-cert", "ssl-no-verify-hostname", "ssl-no-verify-certificate", "brobox", "fleet", "uid", "mfa", "bearer-token"):
                 if k.lower() == option:
                     config[option] = v
                     # If another configuration file overrides our value
@@ -66,37 +66,39 @@ def readCredentials(path, device_id):
 
     device_id (str): Unique ID for the device we are talking to.
 
-    Returns: A tuple (user, password), with values being None that could not
+    Returns: A tuple (user, password, bearer-token), with values being None that could not
     be determined.
     """
     if not os.path.isfile(path):
-        return (None, None)
+        return (None, None, None)
 
     try:
         with open(path, "r") as fp:
             data = json.load(fp)
 
         creds = data.get(device_id, None)
-        if creds and "user" in creds and "password" in creds:
-            return (creds.get("user", None), creds.get("password", None))
+        if creds and (("user" in creds and "password" in creds) or "bearer-token" in creds):
+            return (creds.get("user", None), creds.get("password", None), creds.get("bearer-token", None))
         else:
-            return (None, None)
+            return (None, None, None)
 
     except ValueError:
         # Problem with the JSON file, silently ignore.
-        return (None, None)
+        return (None, None, None)
 
     except IOError as e:
         client.util.fatalError("cannot read credentials file: {}".format(e), path)
-        return (None, None)
+        return (None, None, None)
 
-def saveCredentials(path, args, device_id):
+def saveCredentials(path, args, device_id, include_password=True):
     """
     Saves credentials to the on-disk cache.
 
     path (str): Full path to credentials file.
 
     args (ArgumentParser): Arguments instance to retrieve credentials from.
+
+    include_password (bool): Whether to include the password in the credential file.
 
     device_id (str): Unique ID for the device we are talking to.
     """
@@ -108,7 +110,15 @@ def saveCredentials(path, args, device_id):
         # Ok if it doesn't exist yet, or we cannot parse it.
         data = {}
 
-    data[device_id] = { "user": args.user, "password": args.password }
+    new_creds = {}
+    if args.bearer_token:
+        new_creds["bearer-token"] = args.bearer_token
+
+    if include_password:
+        new_creds["user"] = args.user
+        new_creds["password"] = args.password
+
+    data[device_id] = new_creds
 
     try:
         with open(path, "w") as fp:

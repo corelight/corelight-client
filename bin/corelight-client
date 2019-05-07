@@ -141,6 +141,21 @@ if args.fleet:
 else:
     credentials_id = device_id
 
+# Load the user credentials
+credentials_updated = False
+bearer_token_is_explicit = args.bearer_token
+username_is_explicit = args.user
+password_is_explicit = args.password
+# We can use interactive password prompts, if all of the below are true:
+#   * The user is on an interactive console
+#   * They didn't request --noblock (non-interactive mode)
+#   * They didn't explicitly provide a bearer auth token
+#   * They didn't explicitly provide a username AND a password (we can prompt for one or the other)
+can_use_password_interactive = scheme == "https" and sys.stdin.isatty() and sys.stdout.isatty()
+can_use_password_interactive = can_use_password_interactive and not args.noblock
+can_use_password_interactive = can_use_password_interactive and not bearer_token_is_explicit
+can_use_password_interactive = can_use_password_interactive and (not username_is_explicit or not password_is_explicit)
+
 # Legacy BroBox support. To be removed.
 if os.path.exists(CredentialsFileLegacy) and not os.path.exists(CredentialsFile):
     print("""Note: The credentials file {} is deprecated and support will be
@@ -163,6 +178,10 @@ if creds[1] and not args.password:
     args.password = creds[1]
     argv_pass2 = ["--password", args.password] + argv_pass2
 
+if creds[2] and not args.bearer_token and args.fleet:
+    args.bearer_token = creds[2]
+    argv_pass2 = ["--bearer", args.bearer_token] + argv_pass2
+
 # Create directory for persistent state.
 if not os.path.isdir(StateDir):
     try:
@@ -171,23 +190,20 @@ if not os.path.isdir(StateDir):
     except IOError as e:
         client.util.fatalError("cannot create directory '{}'".format(StateDir), e)
 
-# Prompt for missing credentials if running interactively.
-new_credentials = 0
+# Determine the authentication methods we should use
+AUTH_TYPE_BEARER_TOKEN = 1
+AUTH_TYPE_PASSWORD = 2
+AUTH_TYPE_PASSWORD_INTERACTIVE = 3
 
-if scheme == "https" and sys.stdin.isatty() and sys.stdout.isatty():
-    if not args.user:
-        args.user = client.util.getInput("User name")
+auth_schemes_to_use = []
+if args.bearer_token and args.fleet:
+    auth_schemes_to_use = auth_schemes_to_use + [ AUTH_TYPE_BEARER_TOKEN ]
 
-        if args.user:
-            new_credentials += 1
-            argv_pass2 = ["--user", args.user] + argv_pass2
+if args.user and args.password:
+    auth_schemes_to_use = auth_schemes_to_use + [ AUTH_TYPE_PASSWORD ]
 
-    if not args.password:
-        args.password = client.util.getInput("Password", password=True)
-
-        if args.password:
-            new_credentials += 1
-            argv_pass2 = ["--password", args.password] + argv_pass2
+if can_use_password_interactive:
+    auth_schemes_to_use = auth_schemes_to_use + [ AUTH_TYPE_PASSWORD_INTERACTIVE ]
 
 # Retrieve meta information from device.
 args.auth_base_url = fleet_auth_base_url
@@ -198,12 +214,35 @@ if args.cache:
 else:
     cache = (MetaCacheFileBase + "_" + device_id)
 
-meta = client.meta.load(session, url, cache_file=cache)
+# Authenticate and load API metadata
+new_credential_argv = []
+
+for i in range(len(auth_schemes_to_use)):
+    current_auth_scheme = auth_schemes_to_use[i]
+    has_next_auth_scheme = (i + 1) < len(auth_schemes_to_use)
+    try:
+        if AUTH_TYPE_PASSWORD_INTERACTIVE == current_auth_scheme:
+            new_credential_argv = client.util.promptUserCredentials(args)
+
+        meta = client.meta.load(session, url, cache_file=cache)
+    except client.session.SessionError as e:
+        if e.status_code == 401 and has_next_auth_scheme:
+            # Clear out the invalid credentials for the next iteration
+            if AUTH_TYPE_BEARER_TOKEN == current_auth_scheme:
+                args.bearer_token = None
+            elif AUTH_TYPE_PASSWORD == current_auth_scheme:
+                if not username_is_explicit:
+                    args.user = None
+                if not password_is_explicit:
+                    args.password = None
+        else:
+            e.fatalError()
+
 meta.save(cache)
 
 # Access worked, offer to save crendentials if entered interactively.
 if new_credentials > 0 and (args.user and args.password):
-    if client.util.getInput("Save credentials? (yes/no)") == "yes":
+    if client.util.getInput("Save credentials? Please note that credentials will be saved in plain text. (yes/no)") == "yes":
         client.configuration.saveCredentials(CredentialsFile, args, credentials_id)
 
 # Now extend the argument parser with all the meta information.

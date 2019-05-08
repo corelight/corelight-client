@@ -203,7 +203,11 @@ if args.bearer_token and args.fleet:
     auth_schemes_to_use = auth_schemes_to_use + [ AUTH_TYPE_BEARER_TOKEN ]
 
 if args.user and args.password:
-    auth_schemes_to_use = auth_schemes_to_use + [ AUTH_TYPE_PASSWORD ]
+    # Prioritize the password over a bearer token if it was explicitly offered.
+    if username_is_explicit and password_is_explicit:
+        auth_schemes_to_use = [ AUTH_TYPE_PASSWORD ] + auth_schemes_to_use
+    else:
+        auth_schemes_to_use = auth_schemes_to_use + [ AUTH_TYPE_PASSWORD ]
 
 if can_use_password_interactive:
     # Allow 3 tries

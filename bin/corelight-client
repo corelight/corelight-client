@@ -20,7 +20,7 @@ import client.util
 
 # URL to connect to.
 SensorBaseURL = "{scheme}://{netloc}/api/"
-FleetBaseURL = "{scheme}://{netloc}/fleet/"
+FleetBaseURL = "{scheme}://{netloc}/fleet/v1/"
 
 # User configuration file.
 ConfigFileGlobal = "/etc/corelight-client.rc"
@@ -117,7 +117,7 @@ if args.fleet:
             print("The sensor uid '{}' is invalid".format(args.uid))
             sys.exit(1)
 
-        url = client.util.appendUrl(url, "/v1/sensor/instance/{}/api".format(args.uid))
+        url = client.util.appendUrl(url, "/sensor/instance/{}/api".format(args.uid))
 else:
     if "://" in args.device:
         base = urllib.parse.urlparse(args.device)
@@ -198,21 +198,27 @@ AUTH_TYPE_PASSWORD = "Password"
 AUTH_TYPE_PASSWORD_INTERACTIVE = "Password Interactive"
 AUTH_TYPE_NONE = "None"
 
+# Order the schemes we will use
 auth_schemes_to_use = []
-if args.bearer_token and args.fleet:
+
+# 1. Explicit bearer tokens
+if bearer_token_is_explicit:
     auth_schemes_to_use = auth_schemes_to_use + [ AUTH_TYPE_BEARER_TOKEN ]
-
-if args.user and args.password:
-    # Prioritize the password over a bearer token if it was explicitly offered.
-    if username_is_explicit and password_is_explicit:
-        auth_schemes_to_use = [ AUTH_TYPE_PASSWORD ] + auth_schemes_to_use
-    else:
+# 2. explicit passwords
+elif password_is_explicit and username_is_explicit:
+    auth_schemes_to_use = auth_schemes_to_use + [ AUTH_TYPE_PASSWORD ]
+else:
+    #3. Cached bearer tokens
+    if args.bearer_token and AUTH_TYPE_BEARER_TOKEN:
+        auth_schemes_to_use = auth_schemes_to_use + [ AUTH_TYPE_BEARER_TOKEN ]
+    #4. Cached usernames and passwords.
+    if args.user and args.password:
         auth_schemes_to_use = auth_schemes_to_use + [ AUTH_TYPE_PASSWORD ]
+    #5. Password interactive (multiple tries)
+    if can_use_password_interactive:
+        auth_schemes_to_use = auth_schemes_to_use + [ AUTH_TYPE_PASSWORD_INTERACTIVE, AUTH_TYPE_PASSWORD_INTERACTIVE, AUTH_TYPE_PASSWORD_INTERACTIVE ]
 
-if can_use_password_interactive:
-    # Allow 3 tries
-    auth_schemes_to_use = auth_schemes_to_use + [ AUTH_TYPE_PASSWORD_INTERACTIVE, AUTH_TYPE_PASSWORD_INTERACTIVE, AUTH_TYPE_PASSWORD_INTERACTIVE ]
-
+#6. 'None' if nothing else
 if len(auth_schemes_to_use) == 0:
     auth_schemes_to_use = auth_schemes_to_use + [ AUTH_TYPE_NONE ]
 
@@ -228,24 +234,28 @@ else:
 # Authenticate and load API metadata
 new_credential_argv = []
 
-for i in range(len(auth_schemes_to_use)):    
+for i in range(len(auth_schemes_to_use)):
     current_auth_scheme = auth_schemes_to_use[i]
     has_next_auth_scheme = (i + 1) < len(auth_schemes_to_use)
     try:
-        auth_mesg = "Trying next authentication method ({})".format(current_auth_scheme)
-        if i > 0:
-            print(auth_mesg, file=sys.stderr)
-        else:
-            client.util.debug(auth_mesg, 1)
+        client.util.debug("Trying next authentication method ({})".format(current_auth_scheme), 1)
+
         # If we are in password interactive mode, we need to
         # prompt the user now.
         if AUTH_TYPE_PASSWORD_INTERACTIVE == current_auth_scheme:
+            args.bearer_token = None
             new_credential_argv = client.util.promptUserCredentials(args)
+        elif AUTH_TYPE_PASSWORD == current_auth_scheme:
+            args.bearer_token = None
+        elif AUTH_TYPE_NONE == current_auth_scheme:
+            args.bearer_token = None
+            args.user = None
+            args.password = None
 
         # Fetch the metadata
         meta = client.meta.load(session, url, cache_file=cache)
 
-        # We succeeded at getting metadata. break.
+        # We succeeded at getting metadata. Save what we have to
         client.util.debug("Authentication succeeded ({})".format(current_auth_scheme))
         break
     except client.session.SessionError as e:
@@ -273,13 +283,17 @@ elif len(cached_credential_argv) > 0:
     argv_pass2 = cached_credential_argv + argv_pass2
 
 # Access worked, offer to save crendentials if entered interactively.
-if len(new_credential_argv) > 0 and (args.user and args.password) and not args.no_password_save and not args.noblock:
-    if cached_creds[client.configuration.CRED_BEARER_OFFSET] and not cached_creds[client.configuration.CRED_USER_OFFSET] and not cached_creds[client.configuration.CRED_PASS_OFFSET]:
-        # Just update the bearer token in this case.
-        client.util.debug("Updating autorization bearer token")
-        save_credentials = True
-        include_password = False
-    elif client.util.getInput("Save credentials? Please note that credentials will be saved in plain text under '{}'. (yes/no)".format(CredentialsFile)) == "yes":
+if len(new_credential_argv) > 0 and (args.user and args.password) and not args.no_password_save:
+    save_credentials = False
+    include_password = False
+
+    if cached_creds[client.configuration.CRED_BEARER_OFFSET]:
+        if args.bearer_token != cached_creds[client.configuration.CRED_BEARER_OFFSET]:
+            # Just update the bearer token in this case.
+            print("Updating authentication token in '{}'".format(CredentialsFile), file=sys.stderr)
+            save_credentials = True
+            save_password = cached_creds[client.configuration.CRED_USER_OFFSET] and cached_creds[client.configuration.CRED_PASS_OFFSET]
+    elif not args.noblock and client.util.getInput("Save credentials? Please note that credentials will be saved in plain text under '{}'. (yes/no)".format(CredentialsFile)) == "yes":
         save_credentials = True
         if args.bearer_token:
             include_password = client.util.getInput("Include password? Authentication tokens will only be valid until expiry. (yes/no)") == "yes"

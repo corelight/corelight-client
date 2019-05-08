@@ -142,7 +142,7 @@ class Session:
         """
 
         if self._args.auth_base_url:
-            fullUrl = client.util.appendUrl(self._args.auth_base_url, "/v1/login")
+            fullUrl = client.util.appendUrl(self._args.auth_base_url, "/login")
         else:
             return
 
@@ -169,7 +169,7 @@ class Session:
                 if not vals["id"]:
                     raise SessionError("No user id has been provided by the server.")
 
-                verifyUrl = client.util.appendUrl(self._args.auth_base_url, "/v1/users/{}/2fa/verify".format(vals["id"]))
+                verifyUrl = client.util.appendUrl(self._args.auth_base_url, "/users/{}/2fa/verify".format(vals["id"]))
 
                 if mfaToken and mfaToken is "-" and (not self._args.noblock):
                     mfaToken = client.util.getInput("Verification Code", password=True)

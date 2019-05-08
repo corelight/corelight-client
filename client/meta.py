@@ -124,11 +124,12 @@ def _loadResource(session, meta, url):
     if meta.get(url):
         return
 
-    try:
-        (res, schema, _, data) = session.retrieveResource(url, method="OPTIONS", debug_level=2)
-        res.raise_for_status()
-    except client.session.SessionError as e:
-        e.fatalError()
+    (res, schema, _, data) = session.retrieveResource(url, method="OPTIONS", debug_level=2)
+
+    success = (res.status_code >= 200 and res.status_code < 300)
+
+    if not success:
+        raise session.SessionError("Bad HTTP response code while retriecving metadata", url, res.status_code)
 
     if schema == "index":
         return

@@ -267,6 +267,7 @@ def _processResponse(session, resource, response, schema, cache, data):
 
     response_fields = resource["response-fields"]
     response_fields_by_name = { f["name"]: f for f in response_fields }
+    noblock = session.arguments() and session.arguments().noblock
 
     if not success:
         ### Problem with the request, print error message.
@@ -323,20 +324,21 @@ def _processResponse(session, resource, response, schema, cache, data):
         msg = data["message"]
         url = data["confirmation-url"]
 
-        print()
-        print("== Confirmation required ==")
-        print()
-        print(msg)
-        print()
-        print("== To proceed, enter 'YES': ", end="")
-        sys.stdout.flush()
+        if not noblock:
+            print()
+            print("== Confirmation required ==")
+            print()
+            print(msg)
+            print()
+            print("== To proceed, enter 'YES': ", end="")
+            sys.stdout.flush()
 
-        if sys.stdin.readline() != "YES\n":
-            print("== Aborted")
-            return
+            if sys.stdin.readline() != "YES\n":
+                print("== Aborted")
+                return
 
-        print("== Confirmed, proceeding")
-        print()
+            print("== Confirmed, proceeding")
+            print()
 
         # Reissue the request with the URL we got.
         return process(session, resource, url)

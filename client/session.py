@@ -27,10 +27,11 @@ _Version = 1
 requests.packages.urllib3.disable_warnings()
 
 class SessionError(Exception):
-    def __init__(self, msg, arg=None):
+    def __init__(self, msg, arg=None, status_code=None):
         super(SessionError, self).__init__(msg + (" ({})".format(arg) if arg else ""))
         self._msg = msg
         self._arg = arg
+        self.status_code = status_code
 
     def fatalError(self):
         """Triggers a fatal error reporting  the exception's information."""
@@ -113,7 +114,10 @@ class Session:
         command line options.
         """
         self._args = args
-        self._bearer_token = None
+        
+        # By default, our session bearer token will come from any arguments
+        # provided. During 2FA we need to use a temporary one.
+        self._mfa_bearer_token = None
 
         if not Session._RequestsSession:
             Session._RequestsSession = requests.Session()
@@ -138,7 +142,7 @@ class Session:
         """
 
         if self._args.auth_base_url:
-            fullUrl = client.util.appendUrl(self._args.auth_base_url, "/v1/login")
+            fullUrl = client.util.appendUrl(self._args.auth_base_url, "/login")
         else:
             return
 
@@ -149,22 +153,25 @@ class Session:
         except:
             mfaToken = None
 
-        if self._args.user and self._args.password and not self._bearer_token:
+        if self._args.user and self._args.password and not self._args.bearer_token and not self._mfa_bearer_token:
             res = self._retrieveURL(fullUrl, json={"username": self._args.user, "password": self._args.password}, method="POST")
             res.raise_for_status()
             vals = res.json()
-            if not vals or not vals["token"]:
+            if not vals or not "token" in vals or not vals["token"]:
                 raise SessionError("Server did not return a valid authentication bearer token. Please check the url and try again.")
 
-            self._bearer_token = vals["token"]
+            bearer_token = vals["token"]
+            
+            if vals and "settings" in vals and "password.cache.disabled" in vals["settings"] and vals["settings"]["password.cache.disabled"]:
+                self._args.no_password_save = True
 
             if vals and vals["settings"] and vals["settings"]["2fa.enabled"]:
                 if not vals["id"]:
                     raise SessionError("No user id has been provided by the server.")
 
-                verifyUrl = client.util.appendUrl(self._args.auth_base_url, "/v1/users/{}/2fa/verify".format(vals["id"]))
+                verifyUrl = client.util.appendUrl(self._args.auth_base_url, "/users/{}/2fa/verify".format(vals["id"]))
 
-                if mfaToken and mfaToken is "-" and sys.stdin.isatty() and sys.stdout.isatty():
+                if mfaToken and mfaToken is "-" and (not self._args.noblock):
                     mfaToken = client.util.getInput("Verification Code", password=True)
                 else:
                     mfaToken = None
@@ -172,15 +179,18 @@ class Session:
                 if not mfaToken:
                     raise SessionError("No 2FA token has been provided. Please provide a proper 2FA token and try again.")
 
+                self._mfa_bearer_token = bearer_token
                 res = self._retrieveURL(verifyUrl, json={"passcode": mfaToken}, method="POST")
+                self._mfa_bearer_token = None
                 res.raise_for_status()
                 vals = res.json()
 
-                if not vals or not vals["token"]:
+                if not vals or not "token" in vals or not vals["token"]:
                     raise SessionError("Server did not return a valid authentication bearer token. Please check the url and try again.")
+                
+                bearer_token = vals["token"]
 
-                self._bearer_token = vals["token"]
-
+            self._args.bearer_token = bearer_token
 
     def retrieveResource(self, url, **kwargs):
         """
@@ -216,7 +226,7 @@ class Session:
         considered a fatal error and execution be aborted.
         """
 
-        if self._args.fleet:
+        if self._args.fleet and not self._mfa_bearer_token and not self._args.bearer_token:
             self._performFleetLogin(**kwargs)
 
         response = self._retrieveURL(url, **kwargs)
@@ -233,7 +243,7 @@ class Session:
                 data = response.json()
             except:
                 if success:
-                    raise SessionError("Cannot decode JSON body of response", url)
+                    raise SessionError("Cannot decode JSON body of response", url, response.status_code)
                 else:
                     return (response, "", "", {})
 
@@ -242,7 +252,7 @@ class Session:
 
         else:
             if success:
-                raise SessionError("Received non-JSON response from Corelight Sensor", url)
+                raise SessionError("Received non-JSON response from Corelight Sensor", url, response.status_code)
             else:
                 return (response, "", "", {})
 
@@ -252,16 +262,16 @@ class Session:
             cache = params["cache"]
         except KeyError:
             if success:
-                raise SessionError("Corelight Sensor response did not include all required API parameters", url)
+                raise SessionError("Corelight Sensor response did not include all required API parameters", url, response.status_code)
             else:
                 return (response, "", "", data)
 
         try:
             if int(version) > _Version:
-                raise SessionError("Your current {} client does not support the device's version, please update the client.".format(client.NAME))
+                raise SessionError("Your current {} client does not support the device's version, please update the client.".format(client.NAME), response.status_code)
         except ValueError:
             # This remains a fatal error even if request failed.
-            raise SessionError("Cannot parse version in response.", url)
+            raise SessionError("Cannot parse version in response.", url, response.status_code)
 
         return (response, schema, cache, data)
 
@@ -314,6 +324,10 @@ class Session:
 
         try:
             response = Session._RequestsSession.send(prepared)
+
+            info = response.headers.get("X-INFO-MESSAGE", None)
+            if info:
+                client.util.infoMessage(info)
 
         except requests.exceptions.SSLError as e:
             u = urllib.parse.urlparse(url)
@@ -375,10 +389,10 @@ class Session:
                     raise SessionError("device's UID does not match its certificate (certificate {} for device {})".format(cn, uid))
 
         if response.status_code == 401:
-            raise SessionError("Request not authorized. Did you specify a correct username and password?")
+            raise SessionError("Request not authorized. Did you specify a correct username and password?", None, response.status_code)
 
         if response.status_code == 403:
-            raise SessionError("Operation forbidden. You do not have the needed access right.")
+            raise SessionError("Operation forbidden. You do not have the needed access right.", None, response.status_code)
 
         return response
 
@@ -435,7 +449,9 @@ class Session:
             "Accept": "application/json"
             }
 
-        if self._bearer_token:
-            headers["Authorization"] = "Bearer {}".format(self._bearer_token)
+        if self._args.bearer_token:
+            headers["Authorization"] = "Bearer {}".format(self._args.bearer_token)
+        elif self._mfa_bearer_token:
+            headers["Authorization"] = "Bearer {}".format(self._mfa_bearer_token)
 
         return headers

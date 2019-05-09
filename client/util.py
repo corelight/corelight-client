@@ -11,18 +11,25 @@ _DebugLevel = 0
 def fatalError(msg, arg=None):
     """Reports a fatal error and aborts the process."""
     if arg:
-        print("Fatal error: {} ({})".format(msg, arg))
+        print("Fatal error: {} ({})".format(msg, arg), file=sys.stderr)
     else:
-        print("Fatal error: {}".format(msg))
+        print("Fatal error: {}".format(msg), file=sys.stderr)
 
     sys.exit(1)
 
 def error(msg, arg=None):
     """Reports a non-fatal error."""
     if arg:
-        print("Error: {} ({})".format(msg, arg))
+        print("Error: {} ({})".format(msg, arg), file=sys.stderr)
     else:
-        print("Error: {}".format(msg))
+        print("Error: {}".format(msg), file=sys.stderr)
+
+def infoMessage(msg, arg=None):
+    """Reports a notice to the user."""
+    if arg:
+        print("Note: {} ({})".format(msg, arg), file=sys.stderr)
+    else:
+        print("Note: {}".format(msg), file=sys.stderr)
 
 def enableDebug(level):
     """
@@ -112,3 +119,27 @@ def getInput(prompt, password=False):
         return getpass.getpass("").strip()
     else:
         return sys.stdin.readline().strip()
+
+def promptUserCredentials(args):
+    """
+    Prompts the user for username and password credentials.
+
+    args (ArgumentParser): The current arguments to the application.
+
+    Returns: a list of equivalent command line arguments for the prompted details.
+    """
+    new_args = []
+
+    if not args.user:
+        args.user = getInput("User name")
+
+        if args.user:
+            new_args = ["--user", args.user] + new_args
+
+    if not args.password:
+        args.password = getInput("Password", password=True)
+
+        if args.password:
+            new_args = ["--password", args.password] + new_args
+
+    return new_args

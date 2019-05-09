@@ -34,6 +34,7 @@ def _wrap(txt):
 _re_dquotes = re.compile("``([^`]+)``")
 _re_squotes = re.compile("`([^`]+)`")
 _re_backticks = re.compile("``([^']+)''")
+_false_equivalent_strings = [ "False", "false", "0", "FALSE" ]
 
 def _display(txt):
     """
@@ -413,25 +414,39 @@ def createParser(config):
     Returns: A new ``ComponentArgumentParser`` for the top level.
     """
 
+    noblock = config.get("noblock", False)
+    if noblock in _false_equivalent_strings:
+        noblock = False
+
+    no_password_save = config.get("no-password-save", False)
+    if no_password_save in _false_equivalent_strings:
+        no_password_save = False
+
     device = config.get("device", None)
     fleet = config.get("fleet", None)
+    uid = config.get("uid", None)
     user = config.get("user", None)
     password = config.get("password", None)
+    bearer_token = config.get("bearer-token", None)
     mfa = config.get("mfa", None)
     ssl_ca_cert = config.get("ssl-ca-cert", None)
     ssl_no_verify_hostname = config.get("ssl-no-verify-hostname", False)
     ssl_no_verify_certificate = config.get("ssl-no-verify-certificate", False)
 
     parser = ComponentArgumentParser()
+    parser.add_argument("--noblock", action="store_true", dest="noblock", default=noblock,
+                        help="Assume a non-interactive shell and do not prompt the user for input.")
+    parser.add_argument("--no-password-save", action="store_true", dest="no_password_save", default=no_password_save,
+                    help="Do not prompt to save password.")
     parser.add_argument("-b", "--device", action="store", dest="device", default=device,
                         help="Name or IP address of your Corelight Sensor.")
     parser.add_argument("--fleet", action="store", dest="fleet", default=fleet,
                         help="Name or IP address of your Corelight Fleet Manager.")
-    parser.add_argument("--uid", action="store", dest="uid", default=None,
+    parser.add_argument("--uid", action="store", dest="uid", default=uid,
                         help="The UID of your fleet managed sensor.")
     parser.add_argument("-v", "--version", action="store_true",
                         help="Show version of the API client software.")
-    parser.add_argument("-d", "--debug", action="count", dest="debug_level",
+    parser.add_argument("-d", "--debug", action="count", dest="debug_level", default=client.util.debugLevel(),
                         help="Increase level of debugging output.")
     parser.add_argument("-a", "--async", action="store_true", dest="async_nowait",
                         help="Do not wait for asynchronous operations to finish.")
@@ -439,6 +454,8 @@ def createParser(config):
                         help="User name for authentication.")
     parser.add_argument("-p", "--password", action="store", dest="password", default=password,
                         help="Password for authentication.")
+    parser.add_argument("--bearer", action="store", dest="bearer_token", default=bearer_token,
+                        help="Bearer token or API key used for authentication.")
     parser.add_argument("-m", "--mfa", action="store", dest="mfa", default=mfa,
                         help="2FA verification code for authentication. Use '-' to ask the user.")
     parser.add_argument("--ssl-ca-cert", action="store", dest="ssl_ca_cert", default=ssl_ca_cert,

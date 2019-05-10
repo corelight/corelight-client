@@ -233,21 +233,23 @@ else:
 
 # Authenticate and load API metadata
 new_credential_argv = []
+auth_method_used = AUTH_TYPE_NONE
 
 for i in range(len(auth_schemes_to_use)):
-    current_auth_scheme = auth_schemes_to_use[i]
+    auth_method_used = auth_schemes_to_use[i]
     has_next_auth_scheme = (i + 1) < len(auth_schemes_to_use)
     try:
-        client.util.debug("Trying next authentication method ({})".format(current_auth_scheme), 1)
+        client.util.debug("Trying next authentication method ({})".format(auth_method_used), 1)
 
         # If we are in password interactive mode, we need to
         # prompt the user now.
-        if AUTH_TYPE_PASSWORD_INTERACTIVE == current_auth_scheme:
+        if AUTH_TYPE_PASSWORD_INTERACTIVE == auth_method_used:
             args.bearer_token = None
             new_credential_argv = client.util.promptUserCredentials(args)
-        elif AUTH_TYPE_PASSWORD == current_auth_scheme:
+        elif AUTH_TYPE_PASSWORD == auth_method_used:
             args.bearer_token = None
-        elif AUTH_TYPE_NONE == current_auth_scheme:
+            new_credential_argv = ["--user", args.user, "--password", args.password]
+        elif AUTH_TYPE_NONE == auth_method_used:
             args.bearer_token = None
             args.user = None
             args.password = None
@@ -255,18 +257,23 @@ for i in range(len(auth_schemes_to_use)):
         # Fetch the metadata
         meta = client.meta.load(session, url, cache_file=cache)
 
+        # If we use password auth, we may have retrieved a new bearer token.
+        if AUTH_TYPE_PASSWORD == auth_method_used or AUTH_TYPE_PASSWORD_INTERACTIVE == auth_method_used:
+            if args.bearer_token:
+                new_credential_argv = new_credential_argv + [ "--bearer", args.bearer_token ]
+
         # We succeeded at getting metadata. Save what we have to
-        client.util.debug("Authentication succeeded ({})".format(current_auth_scheme))
+        client.util.debug("Authentication succeeded ({})".format(auth_method_used))
         break
     except client.session.SessionError as e:
         if e.status_code == 401:
-            client.util.error("Authentication method failed", current_auth_scheme)
+            client.util.error("Authentication method failed", auth_method_used)
 
         if e.status_code == 401 and has_next_auth_scheme:
             # Clear out the invalid credentials for the next iteration
-            if AUTH_TYPE_BEARER_TOKEN == current_auth_scheme:
+            if AUTH_TYPE_BEARER_TOKEN == auth_method_used:
                 args.bearer_token = None
-            elif AUTH_TYPE_PASSWORD == current_auth_scheme or AUTH_TYPE_PASSWORD_INTERACTIVE == current_auth_scheme:
+            elif AUTH_TYPE_PASSWORD == auth_method_used or AUTH_TYPE_PASSWORD_INTERACTIVE == auth_method_used:
                 new_credential_argv = []
                 if not username_is_explicit:
                     args.user = None
@@ -283,7 +290,7 @@ elif len(cached_credential_argv) > 0:
     argv_pass2 = cached_credential_argv + argv_pass2
 
 # Access worked, offer to save crendentials if entered interactively.
-if len(new_credential_argv) > 0 and (args.user and args.password) and not args.no_password_save:
+if auth_method_used == AUTH_TYPE_PASSWORD_INTERACTIVE and not args.no_password_save:
     save_credentials = False
     include_password = False
 
@@ -292,7 +299,7 @@ if len(new_credential_argv) > 0 and (args.user and args.password) and not args.n
             # Just update the bearer token in this case.
             print("Updating authentication token in '{}'".format(CredentialsFile), file=sys.stderr)
             save_credentials = True
-            save_password = cached_creds[client.configuration.CRED_USER_OFFSET] and cached_creds[client.configuration.CRED_PASS_OFFSET]
+            include_password = cached_creds[client.configuration.CRED_USER_OFFSET] and cached_creds[client.configuration.CRED_PASS_OFFSET]
     elif not args.noblock and client.util.getInput("Save credentials? Please note that credentials will be saved in plain text under '{}'. (yes/no)".format(CredentialsFile)) == "yes":
         save_credentials = True
         if args.bearer_token:

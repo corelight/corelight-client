@@ -267,7 +267,7 @@ def _processResponse(session, resource, response, schema, cache, data):
 
     response_fields = resource["response-fields"]
     response_fields_by_name = { f["name"]: f for f in response_fields }
-    noblock = session.arguments() and session.arguments().noblock
+    noblock = (session.arguments() and session.arguments().noblock)
 
     if not success:
         ### Problem with the request, print error message.

@@ -435,7 +435,7 @@ def createParser(config):
 
     parser = ComponentArgumentParser()
     parser.add_argument("--noblock", action="store_true", dest="noblock", default=noblock,
-                        help="Assume a non-interactive shell and do not prompt the user for input.")
+                        help="Assume a non-interactive shell and do not prompt the user for input (incl. skipping confirmation prompts for destructive operations)")
     parser.add_argument("--no-password-save", action="store_true", dest="no_password_save", default=no_password_save,
                     help="Do not prompt to save password.")
     parser.add_argument("-b", "--device", action="store", dest="device", default=device,

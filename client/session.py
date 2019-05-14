@@ -114,7 +114,7 @@ class Session:
         command line options.
         """
         self._args = args
-        
+
         # By default, our session bearer token will come from any arguments
         # provided. During 2FA we need to use a temporary one.
         self._mfa_bearer_token = None
@@ -161,7 +161,7 @@ class Session:
                 raise SessionError("Server did not return a valid authentication bearer token. Please check the url and try again.")
 
             bearer_token = vals["token"]
-            
+
             if vals and "settings" in vals and "password.cache.disabled" in vals["settings"] and vals["settings"]["password.cache.disabled"]:
                 self._args.no_password_save = True
 
@@ -187,7 +187,7 @@ class Session:
 
                 if not vals or not "token" in vals or not vals["token"]:
                     raise SessionError("Server did not return a valid authentication bearer token. Please check the url and try again.")
-                
+
                 bearer_token = vals["token"]
 
             self._args.bearer_token = bearer_token

@@ -151,10 +151,10 @@ password_is_explicit = args.password
 #   * They didn't request --noblock (non-interactive mode)
 #   * They didn't explicitly provide a bearer auth token
 #   * They didn't explicitly provide a username AND a password (we can prompt for one or the other)
-can_use_password_interactive = scheme == "https" and sys.stdin.isatty() and sys.stdout.isatty()
-can_use_password_interactive = can_use_password_interactive and not args.noblock
-can_use_password_interactive = can_use_password_interactive and not bearer_token_is_explicit
-can_use_password_interactive = can_use_password_interactive and (not username_is_explicit or not password_is_explicit)
+can_use_password_interactive = (scheme == "https" and sys.stdin.isatty() and sys.stdout.isatty())
+can_use_password_interactive = (can_use_password_interactive and not args.noblock)
+can_use_password_interactive = (can_use_password_interactive and not bearer_token_is_explicit)
+can_use_password_interactive = (can_use_password_interactive and (not username_is_explicit or not password_is_explicit))
 
 # Legacy BroBox support. To be removed.
 if os.path.exists(CredentialsFileLegacy) and not os.path.exists(CredentialsFile):
@@ -203,24 +203,24 @@ auth_schemes_to_use = []
 
 # 1. Explicit bearer tokens
 if bearer_token_is_explicit:
-    auth_schemes_to_use = auth_schemes_to_use + [ AUTH_TYPE_BEARER_TOKEN ]
+    auth_schemes_to_use += [AUTH_TYPE_BEARER_TOKEN]
 # 2. explicit passwords
 elif password_is_explicit and username_is_explicit:
-    auth_schemes_to_use = auth_schemes_to_use + [ AUTH_TYPE_PASSWORD ]
+    auth_schemes_to_use += [AUTH_TYPE_PASSWORD]
 else:
-    #3. Cached bearer tokens
+    # 3. Cached bearer tokens
     if args.bearer_token and AUTH_TYPE_BEARER_TOKEN:
-        auth_schemes_to_use = auth_schemes_to_use + [ AUTH_TYPE_BEARER_TOKEN ]
-    #4. Cached usernames and passwords.
+        auth_schemes_to_use += [AUTH_TYPE_BEARER_TOKEN]
+    # 4. Cached usernames and passwords.
     if args.user and args.password:
-        auth_schemes_to_use = auth_schemes_to_use + [ AUTH_TYPE_PASSWORD ]
-    #5. Password interactive (multiple tries)
+        auth_schemes_to_use += [AUTH_TYPE_PASSWORD]
+    # 5. Password interactive (multiple tries)
     if can_use_password_interactive:
-        auth_schemes_to_use = auth_schemes_to_use + [ AUTH_TYPE_PASSWORD_INTERACTIVE, AUTH_TYPE_PASSWORD_INTERACTIVE, AUTH_TYPE_PASSWORD_INTERACTIVE ]
+        auth_schemes_to_use += [AUTH_TYPE_PASSWORD_INTERACTIVE, AUTH_TYPE_PASSWORD_INTERACTIVE, AUTH_TYPE_PASSWORD_INTERACTIVE]
 
-#6. 'None' if nothing else
+# 6. 'None' if nothing else
 if len(auth_schemes_to_use) == 0:
-    auth_schemes_to_use = auth_schemes_to_use + [ AUTH_TYPE_NONE ]
+    auth_schemes_to_use += [AUTH_TYPE_NONE]
 
 # Retrieve meta information from device.
 args.auth_base_url = fleet_auth_base_url
@@ -237,7 +237,7 @@ auth_method_used = AUTH_TYPE_NONE
 
 for i in range(len(auth_schemes_to_use)):
     auth_method_used = auth_schemes_to_use[i]
-    has_next_auth_scheme = (i + 1) < len(auth_schemes_to_use)
+    has_next_auth_scheme = ((i + 1) < len(auth_schemes_to_use))
     try:
         client.util.debug("Trying next authentication method ({})".format(auth_method_used), 1)
 
@@ -265,6 +265,7 @@ for i in range(len(auth_schemes_to_use)):
         # We succeeded at getting metadata. Save what we have to
         client.util.debug("Authentication succeeded ({})".format(auth_method_used))
         break
+
     except client.session.SessionError as e:
         if e.status_code == 401:
             client.util.error("Authentication method failed", auth_method_used)

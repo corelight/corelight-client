@@ -147,11 +147,13 @@ bearer_token_is_explicit = args.bearer_token
 username_is_explicit = args.user
 password_is_explicit = args.password
 # We can use interactive password prompts, if all of the below are true:
+#   * The user is not using a local/unsecured channel to connect (unless they told us to use a username, indicating they want password-based auth)
 #   * The user is on an interactive console
 #   * They didn't request --noblock (non-interactive mode)
 #   * They didn't explicitly provide a bearer auth token
 #   * They didn't explicitly provide a username AND a password (we can prompt for one or the other)
-can_use_password_interactive = (scheme == "https" and sys.stdin.isatty() and sys.stdout.isatty())
+can_use_password_interactive = (scheme == "https" and not args.socket) or args.user
+can_use_password_interactive = (can_use_password_interactive and sys.stdin.isatty() and sys.stdout.isatty())
 can_use_password_interactive = (can_use_password_interactive and not args.noblock)
 can_use_password_interactive = (can_use_password_interactive and not bearer_token_is_explicit)
 can_use_password_interactive = (can_use_password_interactive and (not username_is_explicit or not password_is_explicit))
@@ -208,11 +210,11 @@ if bearer_token_is_explicit:
 elif password_is_explicit and username_is_explicit:
     auth_schemes_to_use += [AUTH_TYPE_PASSWORD]
 else:
-    # 3. Cached bearer tokens
-    if args.bearer_token and AUTH_TYPE_BEARER_TOKEN:
+    # 3. Cached bearer tokens as long as a user isn't specified or the user matches the cached token
+    if args.bearer_token and ((not args.user) or (cached_creds[client.configuration.CRED_USER_OFFSET] == args.user)):
         auth_schemes_to_use += [AUTH_TYPE_BEARER_TOKEN]
     # 4. Cached usernames and passwords.
-    if args.user and args.password:
+    if args.user and args.password and (cached_creds[client.configuration.CRED_USER_OFFSET] == args.user):
         auth_schemes_to_use += [AUTH_TYPE_PASSWORD]
     # 5. Password interactive (multiple tries)
     if can_use_password_interactive:
@@ -245,6 +247,12 @@ for i in range(len(auth_schemes_to_use)):
         # prompt the user now.
         if AUTH_TYPE_PASSWORD_INTERACTIVE == auth_method_used:
             args.bearer_token = None
+            if not password_is_explicit:
+                args.password = None
+
+            if not username_is_explicit:
+                args.user = None
+
             new_credential_argv = client.util.promptUserCredentials(args)
         elif AUTH_TYPE_PASSWORD == auth_method_used:
             args.bearer_token = None
@@ -300,7 +308,7 @@ if auth_method_used == AUTH_TYPE_PASSWORD_INTERACTIVE and not args.no_password_s
             # Just update the bearer token in this case.
             print("Updating authentication token in '{}'".format(CredentialsFile), file=sys.stderr)
             save_credentials = True
-            include_password = cached_creds[client.configuration.CRED_USER_OFFSET] and cached_creds[client.configuration.CRED_PASS_OFFSET]
+            include_password = (cached_creds[client.configuration.CRED_USER_OFFSET] and (cached_creds[client.configuration.CRED_PASS_OFFSET] == args.password))
     elif not args.noblock and client.util.getInput("Save credentials? Please note that credentials will be saved in plain text under '{}'. (yes/no)".format(CredentialsFile)) == "yes":
         save_credentials = True
         if args.bearer_token:

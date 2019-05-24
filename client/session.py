@@ -6,13 +6,14 @@ import os
 import ssl
 import sys
 import urllib.parse
-
+import socket
 import requests
 import requests.exceptions
 import requests.utils
 import requests.adapters
 import requests.packages.urllib3
 import requests.packages.urllib3.poolmanager
+import requests.packages.urllib3.connection
 import requests.packages.urllib3.connectionpool
 
 import client.util
@@ -88,6 +89,24 @@ class _SSLAdapter(requests.adapters.HTTPAdapter):
         response.peer_certificate = resp._connection.peer_certificate
         return response
 
+class _UnixSocketConnection(requests.packages.urllib3.connection.HTTPConnection):
+    def __init__(self, args, host_address):
+        super(_UnixSocketConnection, self).__init__(host_address, timeout=None)
+        self.sock = None
+        self._args = args
+    
+    def __del__(self):
+        if self.sock:
+            self.sock.close()
+            self.sock = None
+
+    def connect(self):
+        client.util.debug("sock = sock.socket(AF_UNIX, SOCK_STREAM)")
+        sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        client.util.debug("sock.connect('{}')".format(self._args.socket))
+        sock.connect(self._args.socket)
+        self.sock = sock
+
 class _HTTPSConnectionPool(requests.packages.urllib3.connectionpool.HTTPSConnectionPool):
     def _validate_conn(self, conn):
         """Overridden from base class to get access to the server-side certificate."""
@@ -100,6 +119,25 @@ class _HTTPSConnectionPool(requests.packages.urllib3.connectionpool.HTTPSConnect
 
 # Patch our custom class into the pool manager.
 requests.packages.urllib3.poolmanager.pool_classes_by_scheme["https"] = _HTTPSConnectionPool
+
+class _UnixSocketConnectionPool(requests.packages.urllib3.connectionpool.HTTPConnectionPool):
+    def __init__(self, args, host_address):
+        self._host_address = host_address
+        super(_UnixSocketConnectionPool, self).__init__(
+            self._host_address, timeout=None)
+        self._args = args
+
+    def _new_conn(self):
+        return _UnixSocketConnection(self._args, self._host_address)
+
+
+class _UnixSocketAdapter(requests.adapters.HTTPAdapter):
+    def __init__(self, args, host_address):
+        super(_UnixSocketAdapter, self).__init__()
+        self._unix_connection_pool = _UnixSocketConnectionPool(args, host_address)
+
+    def get_connection(self, url, proxies=None):
+        return self._unix_connection_pool
 
 class Session:
     """Class issueing HTTP requests to the Corelight Sensor device."""
@@ -114,14 +152,21 @@ class Session:
         command line options.
         """
         self._args = args
-
+        
         # By default, our session bearer token will come from any arguments
         # provided. During 2FA we need to use a temporary one.
         self._mfa_bearer_token = None
 
+        self.socket_pool = None
+
         if not Session._RequestsSession:
             Session._RequestsSession = requests.Session()
-            Session._RequestsSession.mount('https://', _SSLAdapter(self._args))
+            if self._args.socket:
+                socket_adapter = _UnixSocketAdapter(self._args, "localhost")
+                Session._RequestsSession.mount('http://', socket_adapter)
+                Session._RequestsSession.mount('https://', socket_adapter)
+            else:
+                Session._RequestsSession.mount('https://', _SSLAdapter(self._args))
 
     def arguments(self):
         """Returns the *ComponentArgumentParser* associated with the session."""
@@ -161,15 +206,15 @@ class Session:
                 raise SessionError("Server did not return a valid authentication bearer token. Please check the url and try again.")
 
             bearer_token = vals["token"]
-
+            
             if vals and "settings" in vals and "password.cache.disabled" in vals["settings"] and vals["settings"]["password.cache.disabled"]:
                 self._args.no_password_save = True
 
-            if vals and vals["settings"] and vals["settings"]["2fa.enabled"]:
-                if not vals["id"]:
-                    raise SessionError("No user id has been provided by the server.")
+            if vals and "2fa.required" in vals and vals["2fa.required"]:
+                if "2fa.should_enroll" in vals and vals["2fa.should_enroll"]:
+                    raise SessionError("The user needs to enroll an authenticator app before using corleight-client.")
 
-                verifyUrl = client.util.appendUrl(self._args.auth_base_url, "/users/{}/2fa/verify".format(vals["id"]))
+                verifyUrl = client.util.appendUrl(self._args.auth_base_url, "/current/2fa/verify")
 
                 if mfaToken and mfaToken is "-" and (not self._args.noblock):
                     mfaToken = client.util.getInput("Verification Code", password=True)
@@ -187,7 +232,7 @@ class Session:
 
                 if not vals or not "token" in vals or not vals["token"]:
                     raise SessionError("Server did not return a valid authentication bearer token. Please check the url and try again.")
-
+                
                 bearer_token = vals["token"]
 
             self._args.bearer_token = bearer_token
@@ -335,7 +380,7 @@ class Session:
 
         except requests.ConnectionError as e:
             u = urllib.parse.urlparse(url)
-            raise SessionError("cannot connect to Corelight device at {}".format(u.netloc))
+            raise SessionError("cannot connect to Corelight device at {}".format(u.netloc), e)
 
         except Exception as e:
             raise SessionError("cannot retrieve URL from Corelight device", e)

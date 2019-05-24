@@ -1,7 +1,16 @@
 
+1.5.2 | 2019-05-24 15:49:00 -0700
+
+  * Fixed credential caching so that fleet bearer tokens are tied to a user.
+
+  * Added support for http connections over unix domain sockets through a new option:
+
+        --socket
+            Unix domain socket to use for sending requests.
+
 1.5.1 | 2019-05-13 17:11:24 -0700
 
-  * Improve handling & caching of crendtials through new options:
+  * Improve handling & caching of credentials through new options:
 
         --bearer
             Specify bearer token or API key used for authentication

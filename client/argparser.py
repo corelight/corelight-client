@@ -422,16 +422,18 @@ def createParser(config):
     if no_password_save in _false_equivalent_strings:
         no_password_save = False
 
+    socket = config.get("socket", None)
     device = config.get("device", None)
     fleet = config.get("fleet", None)
     uid = config.get("uid", None)
     user = config.get("user", None)
     password = config.get("password", None)
     bearer_token = config.get("bearer-token", None)
+    
     mfa = config.get("mfa", None)
     ssl_ca_cert = config.get("ssl-ca-cert", None)
-    ssl_no_verify_hostname = config.get("ssl-no-verify-hostname", False)
-    ssl_no_verify_certificate = config.get("ssl-no-verify-certificate", False)
+    ssl_no_verify_hostname = config.get("ssl-no-verify-hostname", bool(socket))
+    ssl_no_verify_certificate = config.get("ssl-no-verify-certificate", bool(socket))
 
     parser = ComponentArgumentParser()
     parser.add_argument("--noblock", action="store_true", dest="noblock", default=noblock,
@@ -464,6 +466,8 @@ def createParser(config):
                         help="Do not verify device's certificate.")
     parser.add_argument("--ssl-no-verify-hostname", action="store_true", dest="ssl_no_verify_hostname", default=ssl_no_verify_hostname,
                         help="Do not verify device's hostname for certificate check.")
+    parser.add_argument("--socket", action="store", dest="socket", default=socket,
+                    help="Unix domain socket to use for sending requests.")
     parser.add_argument("--cache", action="store", dest="cache", default=None,
                         help="Location where to store meta cache.")
 

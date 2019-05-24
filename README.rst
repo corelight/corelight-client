@@ -154,6 +154,9 @@ requests:
     Instructs the client to accept the Corelight Sensor's SSL certificate
     even if it does not match its hostname.
 
+``--socket``
+    Instructs the client to use a unix domain socket for sending requests.
+
 ``--user``
     Specifies the user name for authentication.
 
@@ -201,4 +204,5 @@ with ``#`` are ignored. ``corelight-client`` support the following keys:
     If set to ``false``, the client will accept the Corelight Sensor's SSL
     certificate even if it does not match its hostname.
 
-
+``socket``
+    A unix domain socket to use for sending requests.

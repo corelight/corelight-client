@@ -38,7 +38,7 @@ def read(path, config):
             except ValueError:
                 client.util.fatalError("cannot parse line {} in configuration file".format(cnt), path)
 
-            for option in ("noblock", "device", "user", "password", "ssl-ca-cert", "ssl-no-verify-hostname", "ssl-no-verify-certificate", "brobox", "fleet", "uid", "mfa", "bearer-token", "no-save-password"):
+            for option in ("socket", "noblock", "device", "user", "password", "ssl-ca-cert", "ssl-no-verify-hostname", "ssl-no-verify-certificate", "brobox", "fleet", "uid", "mfa", "bearer-token", "no-save-password"):
                 if k.lower() == option:
                     config[option] = v
                     # If another configuration file overrides our value
@@ -118,8 +118,10 @@ def saveCredentials(path, args, device_id, include_password=True):
     if args.bearer_token:
         new_creds["bearer-token"] = args.bearer_token
 
-    if include_password:
+    if args.user:
         new_creds["user"] = args.user
+
+    if include_password and args.password:
         new_creds["password"] = args.password
 
     data[device_id] = new_creds

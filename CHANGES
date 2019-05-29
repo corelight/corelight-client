@@ -1,5 +1,5 @@
 
-1.5.2 | 2019-05-24 15:49:00 -0700
+1.5.2 | 2019-05-24 20:19:42 +0000
 
   * Fixed credential caching so that fleet bearer tokens are tied to a user.
 

@@ -241,7 +241,12 @@ for i in range(len(auth_schemes_to_use)):
     auth_method_used = auth_schemes_to_use[i]
     has_next_auth_scheme = ((i + 1) < len(auth_schemes_to_use))
     try:
-        client.util.debug("Trying next authentication method ({})".format(auth_method_used), 1)
+        msg = "Trying next authentication method ({})".format(auth_method_used)
+
+        if i == 0:
+            client.util.debug(msg)
+        else:
+            client.util.infoMessage(msg)
 
         # If we are in password interactive mode, we need to
         # prompt the user now.
@@ -271,7 +276,12 @@ for i in range(len(auth_schemes_to_use)):
                 new_credential_argv = new_credential_argv + [ "--bearer", args.bearer_token ]
 
         # We succeeded at getting metadata. Save what we have to
-        client.util.debug("Authentication succeeded ({})".format(auth_method_used))
+        msg = "Authentication succeeded ({})".format(auth_method_used)
+        if i == 0:
+            client.util.debug(msg)
+        else:
+            client.util.infoMessage(msg)
+
         break
 
     except client.session.SessionError as e:
@@ -299,24 +309,42 @@ elif len(cached_credential_argv) > 0:
     argv_pass2 = cached_credential_argv + argv_pass2
 
 # Access worked, offer to save crendentials if entered interactively.
-if auth_method_used == AUTH_TYPE_PASSWORD_INTERACTIVE and not args.no_password_save:
+used_password_authentication =  (auth_method_used == AUTH_TYPE_PASSWORD_INTERACTIVE or auth_method_used == AUTH_TYPE_PASSWORD)
+
+if not args.no_password_save:
     save_credentials = False
     include_password = False
+    # We can update the bearer token automatically if all of the following are true:
+    #  * We previously had a bearer token cached.
+    #  * We have a bearer token now.
+    #  * The cached bearer token does not match our current one (e.g. we have a new one).
+    #  * We used password authentication to get the new bearer token.
+    #  * The previous bearer token was cached for the same user as the new one.
+    automatically_cache_bearer_token = cached_creds[client.configuration.CRED_BEARER_OFFSET]
+    automatically_cache_bearer_token = (automatically_cache_bearer_token and args.bearer_token)
+    automatically_cache_bearer_token = (automatically_cache_bearer_token and cached_creds[client.configuration.CRED_BEARER_OFFSET] != args.bearer_token)
+    automatically_cache_bearer_token = (automatically_cache_bearer_token and used_password_authentication)
+    automatically_cache_bearer_token = (automatically_cache_bearer_token and args.user == cached_creds[client.configuration.CRED_USER_OFFSET])
 
-    if cached_creds[client.configuration.CRED_BEARER_OFFSET]:
-        if args.bearer_token != cached_creds[client.configuration.CRED_BEARER_OFFSET]:
-            # Just update the bearer token in this case.
-            print("Updating authentication token in '{}'".format(CredentialsFile), file=sys.stderr)
-            save_credentials = True
-            include_password = (cached_creds[client.configuration.CRED_USER_OFFSET] and (cached_creds[client.configuration.CRED_PASS_OFFSET] == args.password))
-    elif not args.noblock and client.util.getInput("Save credentials? Please note that credentials will be saved in plain text under '{}'. (yes/no)".format(CredentialsFile)) == "yes":
+    if automatically_cache_bearer_token:
+        # Just update the bearer token and tell the user to expect this.
         save_credentials = True
-        if args.bearer_token:
-            include_password = client.util.getInput("Include password? Authentication tokens will only be valid until expiry. (yes/no)") == "yes"
+        include_password = (cached_creds[client.configuration.CRED_USER_OFFSET] and cached_creds[client.configuration.CRED_PASS_OFFSET])
+        if include_password and cached_creds[client.configuration.CRED_PASS_OFFSET] != args.password:
+            print("Updating authenticated session and plain text password in '{}'".format(CredentialsFile), file=sys.stderr)
         else:
-            # For systems (e.g. sensors) where we only have a password, that is all we can save.
-            include_password = True
-
+            print("Updating authenticated session in '{}'".format(CredentialsFile), file=sys.stderr)
+    
+    elif auth_method_used == AUTH_TYPE_PASSWORD_INTERACTIVE and not args.noblock:
+        if args.bearer_token:
+            # We have an authenticated session. Try to get the user to not save their password.
+            save_credentials = (client.util.getInput("Cache authenticated session? Please note that your session token will be saved in plain text under '{}'. (yes/no)".format(CredentialsFile)) == "yes")
+            include_password = (client.util.getInput("Include password in plain text? After expiry, your authenticated session will have to be refreshed. (yes/no)") == "yes")
+        else:
+            # For systems (e.g. sensors) where we only have a password we will only ask one question.
+            save_credentials = (client.util.getInput("Save credentials? Please note that your username and password will be saved in plain text under '{}'. (yes/no)".format(CredentialsFile)) == "yes")
+            include_password = save_credentials
+    
     if save_credentials:
         client.configuration.saveCredentials(CredentialsFile, args, credentials_id, include_password)
 

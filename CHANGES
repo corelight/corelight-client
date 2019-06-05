@@ -1,4 +1,9 @@
 
+1.5.4 | 2019-06-05 15:09:49 -0700
+
+  * Less pedantic messages indicating what user credentials are being stored and used.
+
+
 1.5.3 | 2019-05-30 02:27:43 +0000
 
   * Improved informational messages indicating what user credentials are being stored and used.

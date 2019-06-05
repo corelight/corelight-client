@@ -339,7 +339,7 @@ if not args.no_password_save:
         if args.bearer_token:
             # We have an authenticated session. Try to get the user to not save their password.
             save_credentials = (client.util.getInput("Cache authenticated session? Please note that your session token will be saved in plain text under '{}'. (yes/no)".format(CredentialsFile)) == "yes")
-            include_password = (client.util.getInput("Include password in plain text? After expiry, your authenticated session will have to be refreshed. (yes/no)") == "yes")
+            include_password = save_credentials and (client.util.getInput("Include password in plain text? After expiry, your authenticated session will have to be refreshed. (yes/no)") == "yes")
         else:
             # For systems (e.g. sensors) where we only have a password we will only ask one question.
             save_credentials = (client.util.getInput("Save credentials? Please note that your username and password will be saved in plain text under '{}'. (yes/no)".format(CredentialsFile)) == "yes")

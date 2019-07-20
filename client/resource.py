@@ -89,12 +89,15 @@ def _renderObject(response_fields_by_name, obj, hide):
         field = response_fields_by_name.get(k, {})
         type = field.get("type")
 
-        if isinstance(v, list) and len(v) > 0:
+        if type == "time-series":
             # Format a time-series a bit more nicely.
-            # TODO: We should use type information to make sure it's
-            # really a time series.
             l = [(k, fmt_tuple((v[0])))]
             l += [("", fmt_tuple(i)) for i in v[1:]]
+            return l
+
+        if type == "list" or isinstance(v, list) and len(v) > 0:
+            l = [(k, v[0])]
+            l += [("", i) for i in v[1:]]
             return l
 
         if type == "string":

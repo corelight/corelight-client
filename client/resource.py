@@ -95,7 +95,7 @@ def _renderObject(response_fields_by_name, obj, hide):
             l += [("", fmt_tuple(i)) for i in v[1:]]
             return l
 
-        if type == "list" or isinstance(v, list) and len(v) > 0:
+        if type == "list":
             l = [(k, v[0])]
             l += [("", i) for i in v[1:]]
             return l

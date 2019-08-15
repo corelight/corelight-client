@@ -1,4 +1,8 @@
 
+1.5.4-3 | 2019-08-15 11:12:18 -0700
+
+  * Add support for "list" type.
+
 1.5.4 | 2019-06-05 15:09:49 -0700
 
   * Less pedantic messages indicating what user credentials are being stored and used.

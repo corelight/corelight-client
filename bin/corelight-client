@@ -182,7 +182,7 @@ if cached_creds[client.configuration.CRED_PASS_OFFSET] and not args.password:
     args.password = cached_creds[client.configuration.CRED_PASS_OFFSET]
     cached_credential_argv = ["--password", args.password] + cached_credential_argv
 
-if cached_creds[client.configuration.CRED_BEARER_OFFSET] and not args.bearer_token and args.fleet:
+if cached_creds[client.configuration.CRED_BEARER_OFFSET] and not args.bearer_token:
     args.bearer_token = cached_creds[client.configuration.CRED_BEARER_OFFSET]
     cached_credential_argv = ["--bearer", args.bearer_token] + cached_credential_argv
 

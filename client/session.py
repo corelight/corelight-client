@@ -15,7 +15,6 @@ import requests.packages.urllib3
 import requests.packages.urllib3.poolmanager
 import requests.packages.urllib3.connection
 import requests.packages.urllib3.connectionpool
-
 import client.util
 
 # The CA to validate default Corelight certificates with.
@@ -153,10 +152,6 @@ class Session:
         """
         self._args = args
         
-        # By default, our session bearer token will come from any arguments
-        # provided. During 2FA we need to use a temporary one.
-        self._mfa_bearer_token = None
-
         self.socket_pool = None
 
         if not Session._RequestsSession:
@@ -185,20 +180,17 @@ class Session:
         """
         Performs fleet authentication
         """
-
         if self._args.auth_base_url:
             fullUrl = client.util.appendUrl(self._args.auth_base_url, "/login")
         else:
             return
-
-        mfaToken = None
 
         try:
             mfaToken = self._args.mfa
         except:
             mfaToken = None
 
-        if self._args.user and self._args.password and not self._args.bearer_token and not self._mfa_bearer_token:
+        if self._args.user and self._args.password and not self._args.bearer_token:
             res = self._retrieveURL(fullUrl, json={"username": self._args.user, "password": self._args.password}, method="POST")
             res.raise_for_status()
             vals = res.json()
@@ -224,9 +216,7 @@ class Session:
                 if not mfaToken:
                     raise SessionError("No 2FA token has been provided. Please provide a proper 2FA token and try again.")
 
-                self._mfa_bearer_token = bearer_token
                 res = self._retrieveURL(verifyUrl, json={"passcode": mfaToken}, method="POST")
-                self._mfa_bearer_token = None
                 res.raise_for_status()
                 vals = res.json()
 
@@ -271,7 +261,7 @@ class Session:
         considered a fatal error and execution be aborted.
         """
 
-        if self._args.fleet and not self._mfa_bearer_token and not self._args.bearer_token:
+        if self._args.fleet and not self._args.bearer_token:
             self._performFleetLogin(**kwargs)
 
         response = self._retrieveURL(url, **kwargs)
@@ -340,11 +330,12 @@ class Session:
         except KeyError:
             debug_level = 1
 
-        if self._args.user and self._args.password and not self._args.fleet:
+        # Basic Auth cred not required if bearer token available
+        if self._args.user and self._args.password and not self._args.fleet and not self._args.bearer_token:
             auth = (self._args.user, self._args.password)
         else:
             auth = None
-
+               
         if auth:
             req = requests.Request(url=url, headers=self._requestHeaders(), auth=auth, **kwargs)
         else:
@@ -373,7 +364,48 @@ class Session:
             info = response.headers.get("X-INFO-MESSAGE", None)
             if info:
                 client.util.infoMessage(info)
+                       
+            info2faheader = response.headers.get("WWW-Authenticate", None)
 
+            if info2faheader and info2faheader.startswith("BasicWith2fa"):
+                 # 2fa is enabled on the sensor hence we will retry with 2fa code
+                 # username password fields are constructed based on a agreed format 
+                 # username 2fa|<authtype>|<username>
+                 # password <passcode>|<password>
+                 mfaToken = client.util.getInput("Verification Code", password=True)
+                 # username has no authenticator type provided 
+                 if self._args.user.find("|") == -1:
+                    self._args.user = '2fa||' + self._args.user
+                 else:
+                    # username expected to be in format authenticator type|username
+                    # As authenticator type can be any custom name, we cannot place a check for that 
+                    self._args.user = '2fa|' + self._args.user
+
+                 self._args.password = mfaToken + '|' + self._args.password
+                 auth = (self._args.user, self._args.password)
+
+                 if auth:
+                     req = requests.Request(url=url, headers=self._requestHeaders(), auth=auth, **kwargs)
+                 else:
+                     req = requests.Request(url=url, headers=self._requestHeaders(), **kwargs)
+
+                 prepared = Session._RequestsSession.prepare_request(req)
+                 response = Session._RequestsSession.send(prepared)
+                 # Get the bearer token which will be valid for the entire session 
+                 info2faheader = response.headers.get("Authorization", None)
+                 if info2faheader and info2faheader.startswith("Bearer "):
+                     start = 'Bearer '
+                     sessionID = (info2faheader.split(start,1))[1]
+                     self._args.bearer_token = sessionID
+
+                 elif info2faheader and info2faheader.startswith("SessionID="):
+                     start = 'SessionID='
+                     sessionID = (info2faheader.split(start,1))[1]
+                     self._args.bearer_token = sessionID
+
+                 else:
+                     raise SessionError("cannot get 2fa session from device")
+ 
         except requests.exceptions.SSLError as e:
             u = urllib.parse.urlparse(url)
             raise SessionError("cannot connect to Corelight device at {}. {}".format(u.netloc, e))
@@ -496,7 +528,5 @@ class Session:
 
         if self._args.bearer_token:
             headers["Authorization"] = "Bearer {}".format(self._args.bearer_token)
-        elif self._mfa_bearer_token:
-            headers["Authorization"] = "Bearer {}".format(self._mfa_bearer_token)
 
         return headers

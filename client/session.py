@@ -368,11 +368,21 @@ class Session:
             info2faheader = response.headers.get("WWW-Authenticate", None)
 
             if info2faheader and info2faheader.startswith("BasicWith2fa"):
+            
                  # 2fa is enabled on the sensor hence we will retry with 2fa code
                  # username password fields are constructed based on a agreed format 
                  # username 2fa|<authtype>|<username>
                  # password <passcode>|<password>
-                 mfaToken = client.util.getInput("Verification Code", password=True)
+                 mfaToken = self._args.mfa
+            
+                 # prompt for a 2fa token
+                 if mfaToken and mfaToken is "-" and (not self._args.noblock):
+                    mfaToken = client.util.getInput("Verification Code", password=True)
+
+                 # if no 2fa token provided  
+                 if mfaToken is None:
+                     raise SessionError("No 2FA token has been provided. Please provide a proper 2FA token and try again.")
+             
                  # username has no authenticator type provided 
                  if self._args.user.find("|") == -1:
                     self._args.user = '2fa||' + self._args.user

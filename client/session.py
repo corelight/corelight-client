@@ -210,8 +210,6 @@ class Session:
 
                 if mfaToken and mfaToken is "-" and (not self._args.noblock):
                     mfaToken = client.util.getInput("Verification Code", password=True)
-                else:
-                    mfaToken = None
 
                 if not mfaToken:
                     raise SessionError("No 2FA token has been provided. Please provide a proper 2FA token and try again.")

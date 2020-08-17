@@ -215,7 +215,17 @@ class Session:
                     raise SessionError("No 2FA token has been provided. Please provide a proper 2FA token and try again.")
 
                 res = self._retrieveURL(verifyUrl, json={"passcode": mfaToken}, method="POST")
-                res.raise_for_status()
+                try:
+                   res.raise_for_status()
+                except requests.exceptions.HTTPError as e: 
+                    data = res.json()
+
+                    # 2fa/verify endpoint return json with error message
+                    if "error" in data and "message" in data['error']:
+                        raise SessionError(str(data['error']['message']))
+                    else:
+                        raise SessionError("Cannot get 2fa session from device")
+
                 vals = res.json()
 
                 if not vals or not "token" in vals or not vals["token"]:

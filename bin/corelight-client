@@ -349,7 +349,10 @@ if not args.no_password_save:
         client.configuration.saveCredentials(CredentialsFile, args, credentials_id, include_password)
 
 # Now extend the argument parser with all the meta information.
-client.argparser.populateParser(parser, meta)
+
+non_flags = [arg for arg in argv_pass2 if not arg.startswith("-")]
+first_command = non_flags[0] if non_flags else None
+client.argparser.populateParser(parser, meta, limit_components_to=first_command)
 
 # Reparse command line arguments.
 args = parser.parse_args(argv_pass2)

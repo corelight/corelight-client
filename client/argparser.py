@@ -479,7 +479,7 @@ def createParser(config):
 
 ComponentParsers = {}
 
-def populateParser(parser, meta):
+def populateParser(parser, meta, limit_components_to=None):
     """
     Extend a previously created top-level command line argument parser with
     options derived from the meta information downloaded from a Corelight Sensor. This
@@ -498,7 +498,8 @@ def populateParser(parser, meta):
         for r in resources:
             components = r["component"]
             command = r["command"]
-            commands += [(components, command, r)]
+            if limit_components_to is None or components[0] == limit_components_to:
+                commands += [(components, command, r)]
 
     for (components, command, r) in sorted(commands):
         component_parser = addComponentParser(parser, "", components)

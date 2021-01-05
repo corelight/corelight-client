@@ -301,7 +301,8 @@ for i in range(len(auth_schemes_to_use)):
         else:
             e.fatalError()
 
-meta.save(cache)
+if not meta.from_cache:
+    meta.save(cache)
 
 if len(new_credential_argv) > 0:
     argv_pass2 = new_credential_argv + argv_pass2

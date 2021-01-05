@@ -2,7 +2,7 @@
 .. _corelight-client:
 
 .. Version number is filled in automatically.
-.. |version| replace:: 1.5.6
+.. |version| replace:: 1.5.7
 
 ====================================
 Corelight Sensor Command Line Client

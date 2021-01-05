@@ -1,4 +1,16 @@
 
+1.5.7 | 2021-01-05 20:27:59 +0000
+
+  * optimize cli parser generation
+
+    optimize cli by only looking at metadata that matches the current command.
+
+  * reduce writes to the metadata cache file
+
+    skip writing the metadata cache if it was loaded from the cache in the
+    first place
+
+
 1.5.6 | 2020-08-17 17:30:00 +0000
 
   * Fix issues with passing 2fa passcode through command line option -m 

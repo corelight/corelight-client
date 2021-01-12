@@ -1,3 +1,9 @@
+1.5.8 | 2021-01-12 19:47:40 +0000
+
+  * fix the cli parser optimization
+
+    when filtering components, check for the component in all of the non-flag
+    arguments from argv, not just the first one.
 
 1.5.7 | 2021-01-05 20:27:59 +0000
 

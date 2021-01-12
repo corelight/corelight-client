@@ -44,7 +44,7 @@ def read(path, config):
                     # If another configuration file overrides our value
                     # then we have to delete the current value from the dict.
                     # e.g. global verses user configuration.
-                    if v is "":
+                    if v == "":
                         del config[option]
                     break
 

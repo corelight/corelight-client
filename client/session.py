@@ -208,7 +208,7 @@ class Session:
 
                 verifyUrl = client.util.appendUrl(self._args.auth_base_url, "/current/2fa/verify")
 
-                if mfaToken and mfaToken is "-" and (not self._args.noblock):
+                if mfaToken and mfaToken == "-" and (not self._args.noblock):
                     mfaToken = client.util.getInput("Verification Code", password=True)
 
                 if not mfaToken:
@@ -384,7 +384,7 @@ class Session:
                  mfaToken = self._args.mfa
             
                  # prompt for a 2fa token
-                 if mfaToken and mfaToken is "-" and (not self._args.noblock):
+                 if mfaToken and mfaToken == "-" and (not self._args.noblock):
                     mfaToken = client.util.getInput("Verification Code", password=True)
 
                  # if no 2fa token provided  

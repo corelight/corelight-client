@@ -1,3 +1,11 @@
+1.5.9 | 2021-01-12 20:05:18 +0000
+
+  * Fix incorrect usage of is for string comparisions
+
+    Correct a few instances of
+
+        SyntaxWarning: "is" with a literal. Did you mean "=="?
+
 1.5.8 | 2021-01-12 19:47:40 +0000
 
   * fix the cli parser optimization

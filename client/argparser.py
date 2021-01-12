@@ -498,7 +498,7 @@ def populateParser(parser, meta, limit_components_to=None):
         for r in resources:
             components = r["component"]
             command = r["command"]
-            if limit_components_to is None or components[0] == limit_components_to:
+            if not limit_components_to or components[0] in limit_components_to:
                 commands += [(components, command, r)]
 
     for (components, command, r) in sorted(commands):

@@ -248,7 +248,7 @@ class ComponentArgumentParser(argparse.ArgumentParser):
             cmd = "{} {}".format(component, r["command"])
             epilog += "  {:25} {}\n".format(cmd, _display(summary))
 
-        epilog += "\n\n  Use -h/--help with any subcommand to learn more about it."
+        epilog += "\n\n  Use -h/--help after any subcommand to learn more about it."
 
         return epilog
 

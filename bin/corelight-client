@@ -351,8 +351,7 @@ if not args.no_password_save:
 
 # Now extend the argument parser with all the meta information.
 
-non_flags = [arg for arg in argv_pass2 if not arg.startswith("-")]
-client.argparser.populateParser(parser, meta, limit_components_to=non_flags)
+client.argparser.populateParser(parser, meta, limit_components_to=remaining)
 
 # Reparse command line arguments.
 args = parser.parse_args(argv_pass2)

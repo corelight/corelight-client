@@ -1,3 +1,9 @@
+1.5.10 | 2021-01-21 18:34:15 +0000
+
+  * fix --help when used without any other arguments
+
+  * clarify that --help comes after a subcommand to learn more about it.
+
 1.5.9 | 2021-01-12 20:05:18 +0000
 
   * Fix incorrect usage of is for string comparisions

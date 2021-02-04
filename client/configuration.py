@@ -132,7 +132,7 @@ def saveCredentials(path, args, device_id, include_password=True):
             fp.close()
 
         os.chmod(path, 0o600)
-        print("Credentials saved to {}".format(path))
+        client.util.infoMessage("Credentials saved to {}".format(path))
 
     except IOError as e:
         client.util.fatalError("cannot save credentials to '{}'".format(path), e)

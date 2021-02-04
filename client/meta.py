@@ -20,6 +20,7 @@ class Meta:
         """
         self._cache = cache
         self._resources = {}
+        self.from_cache = False
 
     def cacheID(self):
         """
@@ -77,6 +78,7 @@ class Meta:
                 cached_data = json.load(fp=fp)
             meta._resources = cached_data['resources']
             meta._cache = cached_data['cache-id']
+            meta.from_cache = True
 
         except:
             # We just ignore any errors.

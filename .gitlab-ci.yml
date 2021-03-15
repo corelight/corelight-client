@@ -3,4 +3,5 @@ image: maestro.corelight.io:3257/brobox/appliance-db/appliance-ci
 pylint:
     stage: test
     script:
+        - env
         - pylint bin/corelight-client client

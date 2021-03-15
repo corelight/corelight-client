@@ -3,6 +3,5 @@ image: $CI_REGISTRY/brobox/appliance-db/appliance-ci
 pylint:
     stage: test
     script:
-        - env
         - pip3 install pylint
         - pylint bin/corelight-client client

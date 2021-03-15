@@ -4,4 +4,4 @@ pylint:
     stage: test
     script:
         - pip3 install pylint
-        - pylint bin/corelight-client client
+        - pylint --rcfile=pylint.rc bin/corelight-client client

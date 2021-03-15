@@ -11,4 +11,4 @@ pypi-upload: distclean wheel
 	twine upload --config-file .pypirc dist/corelight_client-*.whl
 
 pylint:
-	pylint bin/corelight-client client
+	pylint --rcfile=pylint.rc bin/corelight-client client

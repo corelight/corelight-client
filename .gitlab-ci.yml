@@ -4,4 +4,5 @@ pylint:
     stage: test
     script:
         - env
+        - pip install pylint
         - pylint bin/corelight-client client

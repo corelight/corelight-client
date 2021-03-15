@@ -1,0 +1,6 @@
+image: maestro.corelight.io:3257/brobox/appliance-db/appliance-ci
+
+pylint:
+    stage: test
+    script:
+        - make pylint

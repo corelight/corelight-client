@@ -23,8 +23,9 @@ setuptools.setup(name="corelight-client",
 
     scripts=[
         "bin/corelight-client",
+        "bin/zkg-bundle",
+        # Legacy scripts, to be removed.
         "bin/bro-pkg-bundle",
-        # Legacy script, to be removed.
         "bin/brobox"
        ],
 

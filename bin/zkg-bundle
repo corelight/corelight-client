@@ -1,0 +1,119 @@
+#! /usr/bin/env bash
+#
+# Copyright (c) 2021, Corelight. All rights reserved. See COPYING for license information.
+#
+# This ia  wrapper script around zkg that turns one or more Zeek script
+# modules into a bundle for the Zeek package manager. To use the script, put
+# your Zeek modules into subdirectories, say A, B, C. Then run:
+#
+#     zkg-bundle --bundle my-scripts.bundle A B C
+#
+# This will produce a file "my-scripts.bundle" that the Zeek Package Manager's
+# "unbundle" command can process to install the scripts into your Zeek
+# installation.
+#
+
+function usage
+{
+    echo "$(basename $0) --bundle <bundle-file> <directories with Zeek script modules>"
+    exit 1
+}
+
+# Turn a module directory into a git repository and install through zkg.
+function install_one
+{
+    module=$1
+
+    git_cfg="-c 'user.name=$(whoami)' -c 'user.email=no@email.address'"
+    git=${tmp}/$(basename ${module})
+    rm -rf ${git}
+    mkdir -p ${git}
+    cp -a ${module}/* ${git} 2>/dev/null
+
+    # Use bro-pkg.meta as zkg.meta if the latter doesn't exist.
+    if [ -f ${git}/bro-pkg.meta ] && [ ! -f ${git}/zkg.meta ]; then
+        mv ${git}/bro-pkg.meta ${git}/zkg.meta
+    fi
+
+    # Create a minmal zkg.meta file if the module doesn't have one.
+    if [ ! -f ${git}/zkg.meta ]; then
+        echo "[package]" > ${git}/zkg.meta
+        echo "test_command = /bin/true" >> ${git}/zkg.meta
+    fi
+    (cd ${git} && git init && git add . && eval git ${git_cfg} commit -m "'Initializing repository.'")
+    (cd ${tmp} && zkg install --skiptests --force $(basename ${module}))
+}
+
+function cleanup
+{
+    rm -rf ${tmp}
+}
+
+# Create a temporary working directory.
+tmp=/tmp/$(basename $0).$$.tmp
+trap cleanup EXIT
+rm -rf ${tmp}
+mkdir -p ${tmp}
+
+bundle=""
+
+while [ $# -gt 0 ]; do
+    case $1 in
+        --bundle)
+           bundle=$2
+
+           if [ -d "${bundle}" ]; then
+               echo "Cowardly refusing to overwrite existing directory '${bundle}'"
+               exit 1
+           fi
+
+           shift
+           shift
+           ;;
+
+        --*)
+           usage
+           ;;
+
+        *)
+           break
+    esac
+done
+
+test "${bundle}" != "" || usage
+test $# -gt 0 || usage
+
+modules=$@
+
+for dep in zkg git; do
+    if ! type -P ${dep} >/dev/null; then
+        echo "Cannot find ${dep}, please install that first and make sure it's in PATH."
+        exit 1
+    fi
+done
+
+for module in ${modules}; do
+    if [ ! -d ${module} ]; then
+        echo "'${module}' does not exist."
+        exit 1
+    fi
+done
+
+# Create a zkg configuration file.
+config=${tmp}/config
+
+cat >${config} <<EOF
+[paths]
+state_dir  = ${tmp}/zkg
+script_dir = ${tmp}/zkg/scripts
+plugin_dir = ${tmp}/zkg/plugins
+EOF
+
+export ZKG_CONFIG_FILE=${config}
+
+for module in ${modules}; do
+    install_one ${module}
+done
+
+echo
+zkg bundle --force ${bundle}

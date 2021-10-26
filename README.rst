@@ -68,8 +68,8 @@ Access and Authentication
 
 You need to enable access to the Corelight API through the device's
 configuration interface. You also need to set passwords for the API
-users ``admin`` (for unlimited access) and ``monitor`` (for read-only
-access). See the Corelight Sensor documentation for more information.
+access).  Do note that the ``diag-shell`` user is not able to access
+the API.  See the Corelight Sensor documentation for more information.
 
 Next, you need to tell the ``corelight-client`` the network address of
 your Corelight Sensor. You have three choices for doing that:

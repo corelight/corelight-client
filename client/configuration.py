@@ -38,7 +38,7 @@ def read(path, config):
             except ValueError:
                 client.util.fatalError("cannot parse line {} in configuration file".format(cnt), path)
 
-            for option in ("socket", "noblock", "device", "user", "password", "ssl-ca-cert", "ssl-no-verify-hostname", "ssl-no-verify-certificate", "brobox", "fleet", "uid", "mfa", "bearer-token", "no-save-password"):
+            for option in ("socket", "noblock", "device", "user", "password", "ssl-ca-cert", "ssl-no-verify-hostname", "ssl-no-verify-certificate", "brobox", "fleet", "uid", "mfa", "bearer-token", "no-password-save"):
                 if k.lower() == option:
                     config[option] = v
                     # If another configuration file overrides our value

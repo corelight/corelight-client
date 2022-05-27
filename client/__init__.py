@@ -3,4 +3,4 @@
 # See COPYING for license information.
 
 NAME    = "corelight-client"
-VERSION = "1.5.10"
+VERSION = "1.5.11"

@@ -1,3 +1,7 @@
+1.5.11 | 2022-05-27 16:04:32 +0000
+
+  * Fix the config to accept correct no-password-save option.
+
 1.5.10 | 2021-01-21 18:34:15 +0000
 
   * fix --help when used without any other arguments

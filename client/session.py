@@ -204,7 +204,7 @@ class Session:
 
             if vals and "2fa.required" in vals and vals["2fa.required"]:
                 if "2fa.should_enroll" in vals and vals["2fa.should_enroll"]:
-                    raise SessionError("The user needs to enroll an authenticator app before using corleight-client.")
+                    raise SessionError("The user needs to enroll an authenticator app before using corelight-client.")
 
                 verifyUrl = client.util.appendUrl(self._args.auth_base_url, "/current/2fa/verify")
 

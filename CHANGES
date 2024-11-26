@@ -1,3 +1,7 @@
+1.5.12 | 2024-11-26 21:04:42 +0000
+
+  * Add argument to exclude meta parameters for API calls on sensor
+
 1.5.11 | 2022-05-27 16:04:32 +0000
 
   * Fix the config to accept correct no-password-save option.

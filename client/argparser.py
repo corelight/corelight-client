@@ -470,6 +470,8 @@ def createParser(config):
                     help="Unix domain socket to use for sending requests.")
     parser.add_argument("--cache", action="store", dest="cache", default=None,
                         help="Location where to store meta cache.")
+    parser.add_argument("--ignore-meta", action="store_true", dest="ignore_meta", default=False,
+                        help="Do not send metadata info to sensor API call, unless it's specified on CLI.")
 
     # Legacy BroBox support. To be removed.
     parser.add_argument("--brobox", action="store", dest="brobox", default=None,

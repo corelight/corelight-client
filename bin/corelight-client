@@ -350,12 +350,21 @@ if not args.no_password_save:
         client.configuration.saveCredentials(CredentialsFile, args, credentials_id, include_password)
 
 # Now extend the argument parser with all the meta information.
-
 client.argparser.populateParser(parser, meta, limit_components_to=remaining)
 
 # Reparse command line arguments.
 args = parser.parse_args(argv_pass2)
 args.auth_base_url = fleet_auth_base_url
+
+# Check if we should exclude the meta parameters
+if args.ignore_meta and 'parameters' in args.resource:
+    # loop through args and exclude any that are not required, or not specified on CLI
+    # We start at the end of the list and move to the beginning
+    for i in range(len(args.resource['parameters']) - 1, -1, -1):
+        if 'required' in args.resource['parameters'][i] and 'type' in args.resource['parameters'][i]:
+            if args.resource['parameters'][i]['type'] == 'flag' and args.resource['parameters'][i]['required'] == False:
+                if '--' + args.resource['parameters'][i]['name'] not in remaining:
+                    args.resource['parameters'].pop(i)
 
 session.setArguments(args)
 

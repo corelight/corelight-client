@@ -163,6 +163,8 @@ requests:
 ``--version``
     Displays the version of the ``corelight-client`` and exits.
 
+``--ignore-meta``
+    Do not send metadata info to sensor API call, unless it's specified on CLI.
 
 .. _corelight-client-config:
 

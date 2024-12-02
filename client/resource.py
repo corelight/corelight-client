@@ -335,14 +335,16 @@ def _processResponse(session, resource, response, schema, cache, data):
             print()
             print("== To proceed, enter 'YES': ", end="")
             sys.stdout.flush()
+            try:
+                if sys.stdin.readline() != "YES\n":
+                    print("== Aborted")
+                    return
 
-            if sys.stdin.readline() != "YES\n":
-                print("== Aborted")
+                print("== Confirmed, proceeding")
+                print()
+            except KeyboardInterrupt:
+                print("\n== Aborted")
                 return
-
-            print("== Confirmed, proceeding")
-            print()
-
         # Reissue the request with the URL we got.
         return process(session, resource, url)
 

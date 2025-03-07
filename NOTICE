@@ -1,0 +1,8 @@
+This project includes portions of code licensed under the Apache License 2.0:
+
+-   [lib/client/_compat.py] Copyright 2014 Ian Cordasco, Cory Benfield
+-   [lic/client/multipart.py] Copyright 2014 Ian Cordasco, Cory Benfield
+
+The original license can be found at in the `LICENSE-APACHE` file.
+
+The rest of this project is licensed under the `COPYING` file.

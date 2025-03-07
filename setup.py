@@ -31,7 +31,9 @@ setuptools.setup(name="corelight-client",
     package_data={
         "client": [
             "certs/corelight.pem"
-            ]
+            ],
+        
+        "": ["LICENSE-APACHE", "COPYING", "NOTICE"]
         },
 
     install_requires=[

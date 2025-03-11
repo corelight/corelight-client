@@ -15,6 +15,7 @@ import requests.packages.urllib3
 import requests.packages.urllib3.poolmanager
 import requests.packages.urllib3.connection
 import requests.packages.urllib3.connectionpool
+from client.multipart import MultipartEncoder
 import client.util
 
 # The CA to validate default Corelight certificates with.
@@ -347,7 +348,30 @@ class Session:
         if auth:
             req = requests.Request(url=url, headers=self._requestHeaders(), auth=auth, **kwargs)
         else:
-            req = requests.Request(url=url, headers=self._requestHeaders(), **kwargs)
+            if "files" in kwargs :
+                if len(kwargs["files"]) == 1 and "/fleet/v1/sensor-update/images" in url:
+                    key = next(iter(kwargs["files"]))
+                    file = kwargs["files"][key]
+                    file_path = file[0]
+                    f = file[1]
+                    del kwargs["files"]
+                    multipart_data = MultipartEncoder(
+                        fields={
+                            key:(file_path, f, "application/octet-stream"),
+                            "filename": file_path
+                        }
+                    )
+                    new_headers = self._requestHeaders().copy()
+                    new_headers["Content-Type"]=multipart_data.content_type
+                    req = requests.Request(url=url, headers=new_headers, data=multipart_data, **kwargs)
+                else:
+                    # convert name to base 
+                    for key, file in kwargs["files"].items():
+                        kwargs["files"][key][0]=os.path.basename(file[0])
+                    req = requests.Request(url=url, headers=self._requestHeaders(), **kwargs)
+            else:
+                req = requests.Request(url=url, headers=self._requestHeaders(), **kwargs)
+
 
         prepared = Session._RequestsSession.prepare_request(req)
 

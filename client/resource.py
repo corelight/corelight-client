@@ -60,7 +60,7 @@ def _prepareParameters(resource, key, values, params, files):
                 file = open(value, "rb")
 
                 if not files is None:
-                    files[name] = (os.path.basename(value), file, "application/octet-stream")
+                    files[name] = (value, file, "application/octet-stream")
                 else:
                     params[name] = file.read().decode("utf8")
 

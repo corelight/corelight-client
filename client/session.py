@@ -367,7 +367,9 @@ class Session:
                 else:
                     # convert name to base 
                     for key, file in kwargs["files"].items():
-                        kwargs["files"][key][0]=os.path.basename(file[0])
+                        lst = list(kwargs["files"][key])
+                        lst[0] = os.path.basename(file[0])
+                        kwargs["files"][key]=tuple(lst)
                     req = requests.Request(url=url, headers=self._requestHeaders(), **kwargs)
             else:
                 req = requests.Request(url=url, headers=self._requestHeaders(), **kwargs)

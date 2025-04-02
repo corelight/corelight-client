@@ -362,7 +362,7 @@ class CommandArgumentParser(argparse.ArgumentParser):
         help = super(CommandArgumentParser, self).format_help()
         help = help.replace("optional arguments", "Options")
         help = re.sub(re.compile("positional arguments.*Options", re.DOTALL), "Options", help)
-        help = re.sub(re.compile("^ *\{help\}.*$\\n", re.MULTILINE), "", help)
+        help = re.sub(re.compile(r"^ *\{help\}.*$\\n", re.MULTILINE), "", help)
         return help
 
     def help_epilog(self):

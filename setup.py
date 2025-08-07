@@ -39,7 +39,8 @@ setuptools.setup(name="corelight-client",
     install_requires=[
         # 2.17.{1,2} have a problem with urrllib3:
         # https://github.com/requests/requests/issues/4104
-        "requests>=2.9.1,!=2.17.1,!=2.17.2",
+        # Pinning requests to <2.30.0 to avoid compatibility issues with urllib3 2.0.0 and above
+        "requests>=2.9.1,!=2.17.1,!=2.17.2,<2.30.0",
     ],
 
     classifiers=[

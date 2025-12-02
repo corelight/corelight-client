@@ -232,7 +232,12 @@ def process(session, resource, force_url=None):
     else:
         # Can't send both JSON and multipart form, so we turn the fields
         # into multiparts as well.
-        files.update(fields)
+        for key, value in fields.items():
+            if not isinstance(value, tuple):
+                # Convert non-file values to tuples for multipart form
+                files[key] = (key, str(value))
+            else:
+                files[key] = value
 
     # Replace any templated variables.
     for d in resource["variables"]:

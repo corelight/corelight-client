@@ -48,6 +48,7 @@ Alternatively, you can install the latest version from GitHub::
 
     # git clone https://github.com/corelight/corelight-client
     # cd corelight-client
+    # pip3 install setuptools
     # python3 setup.py install
 
 If everything is installed correctly, ``--help`` will give you a usage

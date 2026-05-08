@@ -68,6 +68,28 @@ class TestSSLAdapterNoVerifyHostname(unittest.TestCase):
             self.assertNotEqual(ctx.verify_mode, ssl.CERT_NONE)
 
 
+class TestSSLAdapterNoVerifyCertificateHostname(unittest.TestCase):
+    def test_assert_hostname_false_even_with_explicit_ca_when_no_verify_cert(self):
+        """--ssl-no-verify-certificate must disable hostname checking too.
+
+        Old code set assert_hostname=u.hostname even with ssl_no_verify_certificate=True,
+        which caused spurious hostname failures when cert verification was disabled.
+        """
+        adapter = _SSLAdapter(_make_args(ssl_no_verify_certificate=True, ssl_ca_cert="/some/ca.pem"))
+        pool = _make_pool()
+        adapter.cert_verify(pool, "https://mydevice.example.com", verify=True, cert=None)
+        self.assertFalse(pool.assert_hostname)
+
+
+class TestSSLAdapterVerifyHostname(unittest.TestCase):
+    def test_assert_hostname_set_to_url_host_when_verify_enabled(self):
+        """When hostname verification is on, assert_hostname must equal the URL host."""
+        adapter = _SSLAdapter(_make_args(ssl_ca_cert="system"))
+        pool = _make_pool()
+        adapter.cert_verify(pool, "https://mydevice.example.com", verify=True, cert=None)
+        self.assertEqual(pool.assert_hostname, "mydevice.example.com")
+
+
 class TestSSLAdapterDefaultCorelightCA(unittest.TestCase):
     def test_default_uses_corelight_ca_with_hostname_disabled(self):
         """Default (no flags) uses Corelight root CA with assert_hostname=False."""

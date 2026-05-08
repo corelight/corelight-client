@@ -69,6 +69,8 @@ class _SSLAdapter(requests.adapters.HTTPAdapter):
             super().cert_verify(conn, url, verify_arg, cert)
             if ssl_no_verify_hostname:
                 conn.assert_hostname = False
+            else:
+                conn.assert_hostname = urllib.parse.urlparse(url).hostname
 
         if cert:
             if not isinstance(cert, str):

@@ -51,33 +51,29 @@ class _SSLAdapter(requests.adapters.HTTPAdapter):
         ssl_no_verify_hostname = self._args.ssl_no_verify_hostname
         ssl_no_verify_certificate = self._args.ssl_no_verify_certificate
 
-        if ssl_no_verify_certificate:
-            conn.cert_reqs = ssl.CERT_NONE
-        else:
-            conn.cert_reqs = ssl.CERT_REQUIRED
-
         if not ssl_ca_cert:
             # Use Corelight root CA and disable hostname verification.
             ssl_ca_cert = _CorelightRoot
             ssl_no_verify_hostname = True
 
-        elif ssl_ca_cert == "system":
-            ssl_ca_cert = requests.utils.DEFAULT_CA_BUNDLE_PATH
-
-        if not ssl_no_verify_hostname:
-            u = urllib.parse.urlparse(url)
-            conn.assert_hostname = u.hostname
-        else:
+        if ssl_no_verify_certificate:
+            # Must disable check_hostname before setting CERT_NONE; Python ssl
+            # raises an error if you try to set CERT_NONE while check_hostname=True.
+            ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+            ctx.check_hostname = False
+            ctx.verify_mode = ssl.CERT_NONE
+            conn.ssl_context = ctx
             conn.assert_hostname = False
-
-        # Rest copied from base class.
-        if not os.path.isdir(ssl_ca_cert):
-            conn.ca_certs = ssl_ca_cert
         else:
-            conn.ca_cert_dir = ssl_ca_cert
+            verify_arg = ssl_ca_cert if ssl_ca_cert != "system" else True
+            super().cert_verify(conn, url, verify_arg, cert)
+            if ssl_no_verify_hostname:
+                conn.assert_hostname = False
+            else:
+                conn.assert_hostname = urllib.parse.urlparse(url).hostname
 
         if cert:
-            if not isinstance(cert, basestring): # pylint: disable=undefined-variable
+            if not isinstance(cert, str):
                 conn.cert_file = cert[0]
                 conn.key_file = cert[1]
             else:

@@ -1,3 +1,9 @@
+1.5.20 | 2026-05-18 17:18:25 +0000
+
+  * fix(ssl): use SSLContext for cert/host verify flags
+
+  * fix(ssl): restore assert_hostname when hostname verify is on
+
 1.5.19 | 2026-02-03 11:05:05 -0500
 
   * Fix syntax error in setup.py

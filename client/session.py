@@ -63,6 +63,9 @@ class _SSLAdapter(requests.adapters.HTTPAdapter):
             ctx.check_hostname = False
             ctx.verify_mode = ssl.CERT_NONE
             conn.ssl_context = ctx
+            # urllib3 2.x overwrites context.verify_mode with resolve_cert_reqs(conn.cert_reqs)
+            # at handshake time, so we must reset cert_reqs too or our CERT_NONE is clobbered.
+            conn.cert_reqs = ssl.CERT_NONE
             conn.assert_hostname = False
         else:
             verify_arg = ssl_ca_cert if ssl_ca_cert != "system" else True

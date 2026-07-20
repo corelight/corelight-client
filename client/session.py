@@ -5,6 +5,9 @@
 import os
 import ssl
 import sys
+import time
+import random
+import email.utils
 import urllib.parse
 import socket
 import requests
@@ -17,6 +20,7 @@ import requests.packages.urllib3.connection
 import requests.packages.urllib3.connectionpool
 from client.multipart import MultipartEncoder
 import client.util
+import client.exitcodes
 
 # The CA to validate default Corelight certificates with.
 _CorelightRoot = os.path.join(os.path.dirname(__file__), "certs/corelight.pem")
@@ -28,15 +32,130 @@ _Version = 1
 requests.packages.urllib3.disable_warnings()
 
 class SessionError(Exception):
-    def __init__(self, msg, arg=None, status_code=None):
+    def __init__(self, msg, arg=None, status_code=None, category=None):
         super(SessionError, self).__init__(msg + (" ({})".format(arg) if arg else ""))
         self._msg = msg
         self._arg = arg
         self.status_code = status_code
+        self.category = category if category is not None else client.exitcodes.GENERIC
 
     def fatalError(self):
-        """Triggers a fatal error reporting  the exception's information."""
-        client.util.fatalError(self._msg, self._arg)
+        """Triggers a fatal error reporting the exception's information."""
+        if self._arg:
+            line = "Fatal error: {} ({})".format(self._msg, self._arg)
+        else:
+            line = "Fatal error: {}".format(self._msg)
+
+        retriable = self.category in (client.exitcodes.CONNECT, client.exitcodes.SERVER)
+        client.util.fail(self.category, title=self._msg,
+                         description=(str(self._arg) if self._arg else None),
+                         http_status=self.status_code, retriable=retriable,
+                         legacy_lines=[line])
+
+class RetryPolicy:
+    """Retries transient request failures with idempotency-aware safety."""
+
+    RETRIABLE_STATUSES = frozenset([429, 502, 503, 504])
+    IDEMPOTENT_METHODS = frozenset(["GET", "HEAD", "OPTIONS"])
+
+    # Base backoff seconds and absolute per-wait ceiling.
+    _BASE_BACKOFF = 0.5
+    _MAX_BACKOFF = 30.0
+
+    def __init__(self, retries=0, timeout=None, max_time=None):
+        self.retries = retries or 0
+        self.timeout = timeout
+        self.max_time = max_time
+        self.attempts = 0
+
+    def _is_idempotent(self, method):
+        return method.upper() in RetryPolicy.IDEMPOTENT_METHODS
+
+    def _should_retry_exception(self, method, exc):
+        # Connection never established -> safe to retry for any method.
+        if isinstance(exc, requests.exceptions.ConnectTimeout):
+            return True
+        if isinstance(exc, requests.exceptions.ConnectionError):
+            return True
+        # Response phase may have reached the server -> idempotent only.
+        if isinstance(exc, requests.exceptions.Timeout):
+            return self._is_idempotent(method)
+        return False
+
+    def _should_retry_status(self, method, status):
+        return self._is_idempotent(method) and status in RetryPolicy.RETRIABLE_STATUSES
+
+    def _retry_after(self, response):
+        if response is None:
+            return None
+        value = response.headers.get("Retry-After", None)
+        if not value:
+            return None
+        try:
+            return float(value)
+        except ValueError:
+            parsed = email.utils.parsedate_tz(value)
+            if not parsed:
+                return None
+            when = email.utils.mktime_tz(parsed)
+            delta = when - time.time()
+            return delta if delta > 0 else 0.0
+
+    def _backoff(self, attempt, response):
+        after = self._retry_after(response)
+        if after is not None:
+            return after
+        window = min(RetryPolicy._BASE_BACKOFF * (2 ** (attempt - 1)),
+                     RetryPolicy._MAX_BACKOFF)
+        return random.uniform(0, window)
+
+    def execute(self, method, attempt_fn):
+        """
+        Runs *attempt_fn* (a zero-arg callable returning a requests.Response or
+        raising a requests exception), retrying transient failures per policy.
+
+        Returns the final Response (success, non-retriable, or exhausted). Re-
+        raises the last transient exception if all attempts fail on exceptions.
+        """
+        start = time.monotonic()
+        last_exc = None
+        total_tries = self.retries + 1
+
+        for attempt in range(1, total_tries + 1):
+            self.attempts = attempt
+            response = None
+            try:
+                response = attempt_fn()
+            except Exception as e:  # noqa: F841 (requests exceptions)
+                if not self._should_retry_exception(method, e):
+                    raise
+                last_exc = e
+            else:
+                if not self._should_retry_status(method, response.status_code):
+                    return response
+
+            if attempt >= total_tries:
+                break
+
+            wait = self._backoff(attempt, response)
+            if self.max_time is not None and (time.monotonic() - start) + wait > self.max_time:
+                break
+
+            # Retries are a transport event; route through the debug channel
+            # (like the rest of the HTTP wire logging) so we add no new default
+            # stderr output in any mode. Machine consumers read the retry count
+            # from the error envelope's "attempts" field instead.
+            client.util.debug(
+                "retrying (attempt {}/{}) after {}, waiting {:.1f}s".format(
+                    attempt + 1, total_tries,
+                    ("HTTP {}".format(response.status_code) if response is not None
+                     else type(last_exc).__name__),
+                    wait))
+            time.sleep(wait)
+
+        if response is not None:
+            return response  # exhausted on retriable status; let caller handle it
+        raise last_exc
 
 # requests adaptor giving more control over certificate validation.
 # Adapted from http://docs.python-requests.org/en/master/user/advanced/#transport-adapters
@@ -90,7 +209,9 @@ class _SSLAdapter(requests.adapters.HTTPAdapter):
 
 class _UnixSocketConnection(requests.packages.urllib3.connection.HTTPConnection):
     def __init__(self, args, host_address):
-        super(_UnixSocketConnection, self).__init__(host_address, timeout=None)
+        super(_UnixSocketConnection, self).__init__(
+            host_address,
+            timeout=(args.timeout_read if getattr(args, "timeout_read", None) else None))
         self.sock = None
         self._args = args
     
@@ -123,7 +244,8 @@ class _UnixSocketConnectionPool(requests.packages.urllib3.connectionpool.HTTPCon
     def __init__(self, args, host_address):
         self._host_address = host_address
         super(_UnixSocketConnectionPool, self).__init__(
-            self._host_address, timeout=None)
+            self._host_address,
+            timeout=(args.timeout_read if getattr(args, "timeout_read", None) else None))
         self._args = args
 
     def _new_conn(self):
@@ -151,7 +273,22 @@ class Session:
         command line options.
         """
         self._args = args
-        
+
+        timeout = None
+        retries = 0
+        max_time = None
+        try:
+            if getattr(args, "timeout", None):
+                timeout = client.util.parseTimeout(args.timeout)
+            retries = getattr(args, "retries", 0) or 0
+            max_time = getattr(args, "retry_max_time", None)
+        except ValueError as e:
+            client.util.fatalError("invalid --timeout value", e)
+
+        self._timeout = timeout
+        self._retry = RetryPolicy(retries=retries, timeout=timeout, max_time=max_time)
+        self._args.timeout_read = timeout[1] if timeout else None
+
         self.socket_pool = None
 
         if not Session._RequestsSession:
@@ -311,7 +448,9 @@ class Session:
 
         try:
             if int(version) > _Version:
-                raise SessionError("Your current {} client does not support the device's version, please update the client.".format(client.NAME), response.status_code)
+                raise SessionError("Your current {} client does not support the device's version, please update the client.".format(client.NAME),
+                                   status_code=response.status_code,
+                                   category=client.exitcodes.VERSION_UNSUPPORTED)
         except ValueError:
             # This remains a fatal error even if request failed.
             raise SessionError("Cannot parse version in response.", url, response.status_code)
@@ -392,7 +531,12 @@ class Session:
                     client.util.debug("| " + line, level=debug_level)
 
         try:
-            response = Session._RequestsSession.send(prepared)
+            def _attempt():
+                if self._timeout is not None:
+                    return Session._RequestsSession.send(prepared, timeout=self._timeout)
+                return Session._RequestsSession.send(prepared)
+
+            response = self._retry.execute(prepared.method, _attempt)
 
             info = response.headers.get("X-INFO-MESSAGE", None)
             if info:
@@ -451,11 +595,18 @@ class Session:
  
         except requests.exceptions.SSLError as e:
             u = urllib.parse.urlparse(url)
-            raise SessionError("cannot connect to Corelight device at {}. {}".format(u.netloc, e))
+            raise SessionError("cannot connect to Corelight device at {}. {}".format(u.netloc, e),
+                               category=client.exitcodes.CONNECT)
+
+        except requests.exceptions.Timeout as e:
+            u = urllib.parse.urlparse(url)
+            raise SessionError("timed out connecting to Corelight device at {}".format(u.netloc), e,
+                               category=client.exitcodes.CONNECT)
 
         except requests.ConnectionError as e:
             u = urllib.parse.urlparse(url)
-            raise SessionError("cannot connect to Corelight device at {}".format(u.netloc), e)
+            raise SessionError("cannot connect to Corelight device at {}".format(u.netloc), e,
+                               category=client.exitcodes.CONNECT)
 
         except Exception as e:
             raise SessionError("cannot retrieve URL from Corelight device", e)
@@ -509,10 +660,12 @@ class Session:
                     raise SessionError("device's UID does not match its certificate (certificate {} for device {})".format(cn, uid))
 
         if response.status_code == 401:
-            raise SessionError("Request not authorized. Did you specify a correct username and password?", None, response.status_code)
+            raise SessionError("Request not authorized. Did you specify a correct username and password?",
+                               None, response.status_code, category=client.exitcodes.AUTH)
 
         if response.status_code == 403:
-            raise SessionError("Operation forbidden. You do not have the needed access right.", None, response.status_code)
+            raise SessionError("Operation forbidden. You do not have the needed access right.",
+                               None, response.status_code, category=client.exitcodes.AUTH)
 
         return response
 

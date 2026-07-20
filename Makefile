@@ -1,6 +1,9 @@
 
 all:
 
+test:
+	python3 -m unittest discover -s tests -t . -v
+
 distclean:
 	rm -rf build dist corelight-client.egg-info
 

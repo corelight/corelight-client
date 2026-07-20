@@ -56,6 +56,42 @@ class TestUtilState(unittest.TestCase):
             sys.stderr = old
         self.assertEqual(cm.exception.code, exitcodes.AUTH)
 
+    def test_fatal_error_no_arg(self):
+        err = io.StringIO()
+        old = sys.stderr
+        sys.stderr = err
+        try:
+            with self.assertRaises(SystemExit) as cm:
+                util.fatalError("boom")
+        finally:
+            sys.stderr = old
+        self.assertEqual(cm.exception.code, 1)
+        self.assertEqual(err.getvalue(), "Fatal error: boom\n")
+
+    def test_fatal_error_string_arg(self):
+        err = io.StringIO()
+        old = sys.stderr
+        sys.stderr = err
+        try:
+            with self.assertRaises(SystemExit) as cm:
+                util.fatalError("boom", "detail")
+        finally:
+            sys.stderr = old
+        self.assertEqual(cm.exception.code, 1)
+        self.assertEqual(err.getvalue(), "Fatal error: boom (detail)\n")
+
+    def test_fatal_error_exception_arg(self):
+        err = io.StringIO()
+        old = sys.stderr
+        sys.stderr = err
+        try:
+            with self.assertRaises(SystemExit) as cm:
+                util.fatalError("boom", ValueError("x"))
+        finally:
+            sys.stderr = old
+        self.assertEqual(cm.exception.code, 1)
+        self.assertEqual(err.getvalue(), "Fatal error: boom (x)\n")
+
     def test_fail_json_envelope(self):
         util.enableExitCodes(True)
         util.setErrorFormat("json")

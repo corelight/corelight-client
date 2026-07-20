@@ -72,16 +72,16 @@ def fail(code, title=None, description=None, diagnostics=None,
     taxonomy is enabled, otherwise with 1 (0 stays 0).
     """
     if _ErrorFormat == "json":
-        error = {"code": code, "retriable": bool(retriable), "attempts": attempts}
+        envelope = {"code": code, "retriable": bool(retriable), "attempts": attempts}
         if http_status is not None:
-            error["http_status"] = http_status
+            envelope["http_status"] = http_status
         if title:
-            error["title"] = title
+            envelope["title"] = title
         if description:
-            error["description"] = description
+            envelope["description"] = description
         if diagnostics:
-            error["diagnostics"] = diagnostics
-        json.dump({"error": error}, fp=sys.stderr)
+            envelope["diagnostics"] = diagnostics
+        json.dump({"error": envelope}, fp=sys.stderr)
         sys.stderr.write("\n")
     else:
         for line in (legacy_lines or []):

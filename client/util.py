@@ -3,19 +3,105 @@
 # See COPYING for license information.
 
 import getpass
+import json
 import sys
+
+import client.exitcodes
 
 # Debug level. See ``enableDebug()`` for values.
 _DebugLevel = 0
 
+# Whether the curated exit-code taxonomy is active (automation mode).
+_ExitCodesEnabled = False
+
+# Error/output format: "text" (default) or "json".
+_ErrorFormat = "text"
+
+
+def enableExitCodes(enabled):
+    """Enables or disables the curated exit-code taxonomy."""
+    global _ExitCodesEnabled
+    _ExitCodesEnabled = bool(enabled)
+
+
+def exitCodesEnabled():
+    """Returns whether the curated exit-code taxonomy is active."""
+    return _ExitCodesEnabled
+
+
+def setErrorFormat(fmt):
+    """Sets the error/output format: 'text' or 'json'."""
+    global _ErrorFormat
+    _ErrorFormat = fmt
+
+
+def errorFormat():
+    """Returns the current error/output format ('text' or 'json')."""
+    return _ErrorFormat
+
+
+def parseTimeout(spec):
+    """
+    Parses a timeout spec into a (connect, read) tuple of floats.
+
+    spec (str): Either a single number (applied to both connect and read) or
+    "connect,read".
+
+    Returns: A (connect, read) tuple of floats. Raises ValueError on bad input.
+    """
+    parts = str(spec).split(",")
+
+    if len(parts) == 1:
+        v = float(parts[0])
+        return (v, v)
+
+    if len(parts) == 2:
+        return (float(parts[0]), float(parts[1]))
+
+    raise ValueError("timeout must be 'N' or 'connect,read'")
+
+
+def fail(code, title=None, description=None, diagnostics=None,
+         http_status=None, retriable=False, attempts=1, legacy_lines=None):
+    """
+    Single funnel for terminal error exits.
+
+    In JSON error-format mode, prints a structured envelope to stderr. In text
+    mode, prints each entry of *legacy_lines* to stderr verbatim (so legacy
+    output is preserved exactly). The process then exits with *code* when the
+    taxonomy is enabled, otherwise with 1 (0 stays 0).
+    """
+    if _ErrorFormat == "json":
+        error = {"code": code, "retriable": bool(retriable), "attempts": attempts}
+        if http_status is not None:
+            error["http_status"] = http_status
+        if title:
+            error["title"] = title
+        if description:
+            error["description"] = description
+        if diagnostics:
+            error["diagnostics"] = diagnostics
+        json.dump({"error": error}, fp=sys.stderr)
+        sys.stderr.write("\n")
+    else:
+        for line in (legacy_lines or []):
+            print(line, file=sys.stderr)
+
+    if _ExitCodesEnabled:
+        sys.exit(code)
+    else:
+        sys.exit(0 if code == 0 else 1)
+
+
 def fatalError(msg, arg=None):
     """Reports a fatal error and aborts the process."""
     if arg:
-        print("Fatal error: {} ({})".format(msg, arg), file=sys.stderr)
+        line = "Fatal error: {} ({})".format(msg, arg)
     else:
-        print("Fatal error: {}".format(msg), file=sys.stderr)
+        line = "Fatal error: {}".format(msg)
 
-    sys.exit(1)
+    fail(client.exitcodes.GENERIC, title=msg,
+         description=(str(arg) if arg else None), legacy_lines=[line])
 
 def error(msg, arg=None):
     """Reports a non-fatal error."""

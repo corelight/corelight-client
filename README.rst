@@ -226,10 +226,12 @@ transient failure on an unsafe method the client does not retry; it exits with
 the matching code (and sets ``retriable`` in the JSON error envelope) so the
 caller, which alone knows whether its operation is safe to repeat, can decide.
 
-``--retry-max-time`` bounds only the retry loop: it caps the time spent
-sleeping between and starting new attempts, not the duration of any single
-request (that is governed by the read timeout above). A lone request that runs
-longer than ``--retry-max-time`` is not interrupted.
+``--retry-max-time`` is a total wall-clock budget for the retry loop, measured
+from the first attempt and including the time spent in the requests themselves.
+It is checked before each new attempt: once the elapsed time plus the next
+backoff would exceed it, no further attempt is started. It never interrupts a
+request already in flight -- a single request's duration is bounded by the read
+timeout above, not by this value.
 
 Exit codes (only when automation is enabled):
 

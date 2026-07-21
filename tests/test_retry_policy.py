@@ -7,7 +7,8 @@ from unittest import mock
 
 import requests.exceptions
 
-from client.session import RetryPolicy
+import client.exitcodes
+from client.session import RetryPolicy, SessionError
 
 
 def _resp(status):
@@ -78,12 +79,15 @@ class TestRetryPolicy(unittest.TestCase):
     @mock.patch("client.session.time.sleep", return_value=None)
     def test_post_does_not_retry_read_timeout(self, _sleep):
         p = RetryPolicy(retries=3)
+        calls = {"n": 0}
 
         def attempt():
+            calls["n"] += 1
             raise requests.exceptions.ReadTimeout()
 
         with self.assertRaises(requests.exceptions.ReadTimeout):
             p.execute("POST", attempt)
+        self.assertEqual(calls["n"], 1)  # no retry on ReadTimeout for POST
 
     @mock.patch("client.session.time.sleep", return_value=None)
     def test_retry_after_header_used(self, _sleep):
@@ -101,6 +105,25 @@ class TestRetryPolicy(unittest.TestCase):
         out = p.execute("GET", attempt)
         self.assertEqual(out.status_code, 200)
         _sleep.assert_called_once_with(2.0)
+
+    @mock.patch("client.session.time.sleep", return_value=None)
+    def test_negative_retries_behaves_like_zero(self, _sleep):
+        p = RetryPolicy(retries=-1)
+        calls = {"n": 0}
+
+        def attempt():
+            calls["n"] += 1
+            return _resp(200)
+
+        out = p.execute("GET", attempt)
+        self.assertEqual(out.status_code, 200)
+        self.assertEqual(calls["n"], 1)
+
+
+class TestSessionErrorAttempts(unittest.TestCase):
+    def test_attempts_threads_through(self):
+        e = SessionError("x", category=client.exitcodes.CONNECT, attempts=3)
+        self.assertEqual(e.attempts, 3)
 
 
 if __name__ == "__main__":

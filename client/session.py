@@ -32,12 +32,13 @@ _Version = 1
 requests.packages.urllib3.disable_warnings()
 
 class SessionError(Exception):
-    def __init__(self, msg, arg=None, status_code=None, category=None):
+    def __init__(self, msg, arg=None, status_code=None, category=None, attempts=1):
         super(SessionError, self).__init__(msg + (" ({})".format(arg) if arg else ""))
         self._msg = msg
         self._arg = arg
         self.status_code = status_code
         self.category = category if category is not None else client.exitcodes.GENERIC
+        self.attempts = attempts
 
     def fatalError(self):
         """Triggers a fatal error reporting the exception's information."""
@@ -50,7 +51,7 @@ class SessionError(Exception):
         client.util.fail(self.category, title=self._msg,
                          description=(str(self._arg) if self._arg else None),
                          http_status=self.status_code, retriable=retriable,
-                         legacy_lines=[line])
+                         attempts=self.attempts, legacy_lines=[line])
 
 class RetryPolicy:
     """Retries transient request failures with idempotency-aware safety."""
@@ -63,7 +64,7 @@ class RetryPolicy:
     _MAX_BACKOFF = 30.0
 
     def __init__(self, retries=0, timeout=None, max_time=None):
-        self.retries = retries or 0
+        self.retries = max(retries or 0, 0)
         self.timeout = timeout
         self.max_time = max_time
         self.attempts = 0
@@ -596,17 +597,17 @@ class Session:
         except requests.exceptions.SSLError as e:
             u = urllib.parse.urlparse(url)
             raise SessionError("cannot connect to Corelight device at {}. {}".format(u.netloc, e),
-                               category=client.exitcodes.CONNECT)
+                               category=client.exitcodes.CONNECT, attempts=self._retry.attempts)
 
         except requests.exceptions.Timeout as e:
             u = urllib.parse.urlparse(url)
             raise SessionError("timed out connecting to Corelight device at {}".format(u.netloc), e,
-                               category=client.exitcodes.CONNECT)
+                               category=client.exitcodes.CONNECT, attempts=self._retry.attempts)
 
         except requests.ConnectionError as e:
             u = urllib.parse.urlparse(url)
             raise SessionError("cannot connect to Corelight device at {}".format(u.netloc), e,
-                               category=client.exitcodes.CONNECT)
+                               category=client.exitcodes.CONNECT, attempts=self._retry.attempts)
 
         except Exception as e:
             raise SessionError("cannot retrieve URL from Corelight device", e)

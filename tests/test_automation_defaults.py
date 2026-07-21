@@ -26,7 +26,7 @@ class TestApplyAutomationDefaults(unittest.TestCase):
     def test_automation_fills_defaults(self):
         ns = _NS(automation=True)
         argparser.applyAutomationDefaults(ns)
-        self.assertEqual(ns.timeout, "10,300")
+        self.assertEqual(ns.timeout, "10,3600")
         self.assertEqual(ns.retries, 3)
         self.assertEqual(ns.retry_max_time, 120.0)
         self.assertEqual(ns.error_format, "json")

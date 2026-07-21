@@ -56,6 +56,11 @@ class SessionError(Exception):
 class RetryPolicy:
     """Retries transient request failures with idempotency-aware safety."""
 
+    # Transient HTTP statuses worth retrying, but only for idempotent methods
+    # (see the gate below). 429 is included defensively; the common cases are a
+    # temporarily busy server (503, often with Retry-After) and gateway errors
+    # (502/504). A 503 can also come back from a mutating request, but the
+    # idempotency gate will not retry those -- we never replay a mutation.
     RETRIABLE_STATUSES = frozenset([429, 502, 503, 504])
     IDEMPOTENT_METHODS = frozenset(["GET", "HEAD", "OPTIONS"])
 

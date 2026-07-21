@@ -177,7 +177,7 @@ requests:
 ``--timeout``
     Sets the request timeout in seconds, either as a single number ``N``
     (applied to both connect and read) or as ``connect,read``. Defaults to
-    ``10,300`` when ``--automation`` is enabled. Can also be set through the
+    ``10,3600`` when ``--automation`` is enabled. Can also be set through the
     environment variable ``CORELIGHT_TIMEOUT``.
 
 ``--retries``
@@ -205,9 +205,18 @@ Automation
 
 Passing ``--automation`` (or setting ``CORELIGHT_AUTOMATION=1``) enables a
 bundle of automation-friendly behaviors and turns on the exit-code taxonomy
-below. It implies ``--noblock`` and defaults to a 10s connect / 300s read
+below. It implies ``--noblock`` and defaults to a 10s connect / 3600s read
 timeout, 3 retries (capped at 120s total), and JSON output for both success
 and error. Each piece can be overridden with its own flag.
+
+Without ``--automation`` there is no request timeout at all (the client blocks
+indefinitely), so enabling it never shortens a timeout that existed before. The
+default read timeout is deliberately long: it is meant only to bound a wedged
+connection, not to cap normal work. Some operations, such as large uploads, can
+legitimately take many minutes, and the read timeout applies per network read
+rather than to the whole transfer, so a steady upload keeps resetting it. Lower
+``--timeout`` if you want automation to give up faster, or raise it for an
+unusually large transfer over a slow link.
 
 Retries are idempotency-aware: ``GET``/``HEAD``/``OPTIONS`` requests retry on
 connection failures and on HTTP 429/502/503/504; unsafe methods

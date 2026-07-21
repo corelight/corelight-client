@@ -419,7 +419,13 @@ def applyAutomationDefaults(args):
     """
     if getattr(args, "automation", False):
         if getattr(args, "timeout", None) is None:
-            args.timeout = "10,300"
+            # A deliberately long read timeout: it only bounds a wedged
+            # connection, it does not cap normal work. Some operations (e.g.
+            # large uploads) legitimately take many minutes; requests applies
+            # the read timeout per network read, so a steady transfer keeps
+            # resetting it. Without --automation there is no timeout at all, so
+            # this never shortens a timeout an existing caller relied on.
+            args.timeout = "10,3600"
         if getattr(args, "retries", None) is None:
             args.retries = 3
         if getattr(args, "retry_max_time", None) is None:
@@ -516,7 +522,7 @@ def createParser(config):
     parser.add_argument("--automation", action="store_true", dest="automation", default=bool(automation),
                         help="Enable automation-friendly behavior: timeouts, retries, structured JSON errors, exit-code taxonomy, and strict non-interactive mode.")
     parser.add_argument("--timeout", action="store", dest="timeout", default=timeout,
-                        help="Request timeout in seconds as 'N' or 'connect,read'. Default in --automation: 10,300.")
+                        help="Request timeout in seconds as 'N' or 'connect,read'. Default in --automation: 10,3600.")
     parser.add_argument("--retries", action="store", dest="retries", type=int, default=retries,
                         help="Number of transient-failure retries. Default in --automation: 3.")
     parser.add_argument("--retry-max-time", action="store", dest="retry_max_time", type=float, default=retry_max_time,

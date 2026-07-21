@@ -219,9 +219,17 @@ rather than to the whole transfer, so a steady upload keeps resetting it. Lower
 unusually large transfer over a slow link.
 
 Retries are idempotency-aware: ``GET``/``HEAD``/``OPTIONS`` requests retry on
-connection failures and on HTTP 429/502/503/504; unsafe methods
-(``POST``/``PUT``/``DELETE``) retry only when the connection never reached the
-server, so a mutation is never sent twice.
+connection failures and on HTTP 429/502/503/504. Unsafe methods
+(``POST``/``PUT``/``DELETE``) retry only when the connection timed out before it
+ever reached the server, so a mutation is never sent twice. For any other
+transient failure on an unsafe method the client does not retry; it exits with
+the matching code (and sets ``retriable`` in the JSON error envelope) so the
+caller, which alone knows whether its operation is safe to repeat, can decide.
+
+``--retry-max-time`` bounds only the retry loop: it caps the time spent
+sleeping between and starting new attempts, not the duration of any single
+request (that is governed by the read timeout above). A lone request that runs
+longer than ``--retry-max-time`` is not interrupted.
 
 Exit codes (only when automation is enabled):
 

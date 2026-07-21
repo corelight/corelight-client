@@ -90,6 +90,40 @@ class TestRetryPolicy(unittest.TestCase):
         self.assertEqual(calls["n"], 1)  # no retry on ReadTimeout for POST
 
     @mock.patch("client.session.time.sleep", return_value=None)
+    def test_post_does_not_retry_connection_error(self, _sleep):
+        # A bare ConnectionError is ambiguous (could be a reset after the body
+        # was sent), so a mutation must not be replayed. Regression pin.
+        p = RetryPolicy(retries=3)
+        calls = {"n": 0}
+
+        def attempt():
+            calls["n"] += 1
+            raise requests.exceptions.ConnectionError()
+
+        with self.assertRaises(requests.exceptions.ConnectionError):
+            p.execute("POST", attempt)
+        self.assertEqual(calls["n"], 1)  # no retry on ConnectionError for POST
+
+    @mock.patch("client.session.time.sleep", return_value=None)
+    def test_get_retries_connection_error_then_succeeds(self, _sleep):
+        # Idempotent methods still retry a ConnectionError; confirms we did not
+        # over-correct the mutation fix.
+        p = RetryPolicy(retries=2)
+        seq = [requests.exceptions.ConnectionError(), _resp(200)]
+        calls = {"n": 0}
+
+        def attempt():
+            item = seq[calls["n"]]
+            calls["n"] += 1
+            if isinstance(item, Exception):
+                raise item
+            return item
+
+        out = p.execute("GET", attempt)
+        self.assertEqual(out.status_code, 200)
+        self.assertEqual(calls["n"], 2)
+
+    @mock.patch("client.session.time.sleep", return_value=None)
     def test_retry_after_header_used(self, _sleep):
         p = RetryPolicy(retries=1)
         r503 = _resp(503)

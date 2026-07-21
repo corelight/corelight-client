@@ -445,6 +445,16 @@ def applyAutomationDefaults(args):
     if getattr(args, "error_format", None) is None:
         args.error_format = "text"
 
+    # argparse validates --error-format's choices for CLI-typed values, but a
+    # value coming from the rc file arrives as a string default and skips that
+    # check. Validate the settled value here so a malformed rc entry fails
+    # loudly instead of silently degrading to text.
+    if args.error_format not in ("text", "json"):
+        client.util.fail(client.exitcodes.USAGE,
+                         title="invalid error-format",
+                         description="error-format must be 'text' or 'json', got '{}'".format(args.error_format),
+                         legacy_lines=["{} error: invalid error-format '{}' (must be 'text' or 'json')".format(client.NAME, args.error_format)])
+
 def createParser(config):
     """
     Creates the top-level command line argument parser. This parser is barely

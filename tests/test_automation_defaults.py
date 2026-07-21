@@ -74,6 +74,39 @@ class TestApplyAutomationDefaults(unittest.TestCase):
         self.assertTrue(args.noblock)
 
 
+class TestErrorFormatValidation(unittest.TestCase):
+    """
+    A malformed error-format (e.g. from the rc file, which bypasses argparse's
+    choices check) must fail loudly rather than silently degrade to text.
+    """
+
+    def setUp(self):
+        util.enableExitCodes(True)
+        util.setErrorFormat("text")
+
+    def tearDown(self):
+        util.enableExitCodes(False)
+        util.setErrorFormat("text")
+
+    def test_invalid_error_format_exits_usage(self):
+        ns = _NS(error_format="xml")
+        err = io.StringIO()
+        old_stderr = sys.stderr
+        sys.stderr = err
+        try:
+            with self.assertRaises(SystemExit) as cm:
+                argparser.applyAutomationDefaults(ns)
+        finally:
+            sys.stderr = old_stderr
+
+        self.assertEqual(cm.exception.code, exitcodes.USAGE)
+
+    def test_valid_error_format_passes(self):
+        ns = _NS(error_format="json")
+        argparser.applyAutomationDefaults(ns)
+        self.assertEqual(ns.error_format, "json")
+
+
 class TestParserErrorRoutesThroughFail(unittest.TestCase):
     """
     Regression coverage for ComponentArgumentParser.error() and

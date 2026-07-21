@@ -68,9 +68,8 @@ class RetryPolicy:
     _BASE_BACKOFF = 0.5
     _MAX_BACKOFF = 30.0
 
-    def __init__(self, retries=0, timeout=None, max_time=None):
+    def __init__(self, retries=0, max_time=None):
         self.retries = max(retries or 0, 0)
-        self.timeout = timeout
         self.max_time = max_time
         self.attempts = 0
 
@@ -78,12 +77,20 @@ class RetryPolicy:
         return method.upper() in RetryPolicy.IDEMPOTENT_METHODS
 
     def _should_retry_exception(self, method, exc):
-        # Connection never established -> safe to retry for any method.
+        # ConnectTimeout means the TCP handshake never completed, so the request
+        # body was never sent -> safe to retry for any method. (It subclasses
+        # both ConnectionError and Timeout, so it must be checked first.)
         if isinstance(exc, requests.exceptions.ConnectTimeout):
             return True
+        # A bare ConnectionError is ambiguous: it covers both connect-refused
+        # (body never sent) and a mid-flight reset (the server may have already
+        # received and acted on the request). We can't tell them apart, so we
+        # only retry idempotent methods. For a mutation we surface the error's
+        # exit code / "retriable" hint instead and let the caller -- which knows
+        # whether its operation is safe to repeat -- decide.
         if isinstance(exc, requests.exceptions.ConnectionError):
-            return True
-        # Response phase may have reached the server -> idempotent only.
+            return self._is_idempotent(method)
+        # Read-phase / ambiguous timeout may have reached the server -> idempotent only.
         if isinstance(exc, requests.exceptions.Timeout):
             return self._is_idempotent(method)
         return False
@@ -215,6 +222,9 @@ class _SSLAdapter(requests.adapters.HTTPAdapter):
 
 class _UnixSocketConnection(requests.packages.urllib3.connection.HTTPConnection):
     def __init__(self, args, host_address):
+        # HTTPConnection takes a single socket timeout covering both connect and
+        # read; we pass the read timeout since that is the phase that matters
+        # here (a local unix-socket connect is effectively instantaneous).
         super(_UnixSocketConnection, self).__init__(
             host_address,
             timeout=(args.timeout_read if getattr(args, "timeout_read", None) else None))
@@ -292,7 +302,7 @@ class Session:
             client.util.fatalError("invalid --timeout value", e)
 
         self._timeout = timeout
-        self._retry = RetryPolicy(retries=retries, timeout=timeout, max_time=max_time)
+        self._retry = RetryPolicy(retries=retries, max_time=max_time)
         self._args.timeout_read = timeout[1] if timeout else None
 
         self.socket_pool = None

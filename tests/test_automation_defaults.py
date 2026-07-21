@@ -107,6 +107,63 @@ class TestErrorFormatValidation(unittest.TestCase):
         self.assertEqual(ns.error_format, "json")
 
 
+class TestEnableAutomationOrdering(unittest.TestCase):
+    """
+    enableAutomation() must turn on the exit-code taxonomy from the parsed
+    --automation flag BEFORE running the normalization that can fail. Otherwise
+    a validation error (e.g. a bad rc-sourced error-format) would exit 1 instead
+    of the taxonomy's USAGE code. The entry point starts with exit codes off, so
+    these tests deliberately do NOT pre-enable them.
+    """
+
+    def setUp(self):
+        util.enableExitCodes(False)
+        util.setErrorFormat("text")
+
+    def tearDown(self):
+        util.enableExitCodes(False)
+        util.setErrorFormat("text")
+
+    def test_automation_bad_error_format_exits_usage_code(self):
+        # Regression pin: with --automation, a malformed error-format must exit
+        # with USAGE (2), not collapse to 1, even though exit codes start off.
+        ns = _NS(automation=True, error_format="xml")
+        err = io.StringIO()
+        old_stderr = sys.stderr
+        sys.stderr = err
+        try:
+            with self.assertRaises(SystemExit) as cm:
+                argparser.enableAutomation(ns)
+        finally:
+            sys.stderr = old_stderr
+
+        self.assertEqual(cm.exception.code, exitcodes.USAGE)
+        self.assertTrue(util.exitCodesEnabled())
+
+    def test_legacy_bad_error_format_collapses_to_1(self):
+        # Without --automation the taxonomy stays off, so the same failure
+        # collapses to 1 (legacy behavior preserved).
+        ns = _NS(automation=False, error_format="xml")
+        err = io.StringIO()
+        old_stderr = sys.stderr
+        sys.stderr = err
+        try:
+            with self.assertRaises(SystemExit) as cm:
+                argparser.enableAutomation(ns)
+        finally:
+            sys.stderr = old_stderr
+
+        self.assertEqual(cm.exception.code, 1)
+        self.assertFalse(util.exitCodesEnabled())
+
+    def test_automation_success_sets_format_and_codes(self):
+        ns = _NS(automation=True)
+        argparser.enableAutomation(ns)
+        self.assertTrue(util.exitCodesEnabled())
+        self.assertEqual(util.errorFormat(), "json")
+        self.assertTrue(ns.noblock)
+
+
 class TestParserErrorRoutesThroughFail(unittest.TestCase):
     """
     Regression coverage for ComponentArgumentParser.error() and

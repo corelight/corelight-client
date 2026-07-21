@@ -455,6 +455,22 @@ def applyAutomationDefaults(args):
                          description="error-format must be 'text' or 'json', got '{}'".format(args.error_format),
                          legacy_lines=["{} error: invalid error-format '{}' (must be 'text' or 'json')".format(client.NAME, args.error_format)])
 
+def enableAutomation(args):
+    """
+    Normalizes automation options and wires up the matching output format and
+    exit-code taxonomy for all subsequent error paths.
+
+    Enables the taxonomy first -- from the already-parsed ``--automation`` flag,
+    which is a concrete bool by this point -- so that a validation error raised
+    while normalizing (e.g. a bad ``error-format`` from the rc file) exits with
+    the taxonomy's usage code instead of collapsing to 1. ``setErrorFormat`` runs
+    last because ``applyAutomationDefaults`` is what settles the final value.
+    """
+    if getattr(args, "automation", False):
+        client.util.enableExitCodes(True)
+    applyAutomationDefaults(args)
+    client.util.setErrorFormat(args.error_format)
+
 def createParser(config):
     """
     Creates the top-level command line argument parser. This parser is barely

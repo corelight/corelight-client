@@ -106,10 +106,7 @@ if (not args.device and not args.fleet) or (args.device and args.fleet):
         parser.print_help()
         sys.exit(1)
     else:
-        client.argparser.applyAutomationDefaults(args)
-        client.util.setErrorFormat(args.error_format)
-        if args.automation:
-            client.util.enableExitCodes(True)
+        client.argparser.enableAutomation(args)
         client.util.fail(client.exitcodes.USAGE,
                          title="no device specified",
                          description="You need to specify the address of either your Corelight Sensor or your Corelight Fleet Manager.",
@@ -119,10 +116,7 @@ client.util.enableDebug(args.debug_level)
 
 # Normalize automation options and enable output/exit-code behavior early so
 # that all subsequent error paths honor them.
-client.argparser.applyAutomationDefaults(args)
-client.util.setErrorFormat(args.error_format)
-if args.automation:
-    client.util.enableExitCodes(True)
+client.argparser.enableAutomation(args)
 
 fleet_auth_base_url = None
 
@@ -388,10 +382,7 @@ args.auth_base_url = fleet_auth_base_url
 # implies noblock") is lost unless we reapply it here. session.arguments()
 # below returns this namespace, so anything read from it post-reparse
 # (including client/resource.py's confirmation gate) needs this rerun.
-client.argparser.applyAutomationDefaults(args)
-client.util.setErrorFormat(args.error_format)
-if args.automation:
-    client.util.enableExitCodes(True)
+client.argparser.enableAutomation(args)
 
 # Check if we should exclude the meta parameters
 if args.ignore_meta and 'parameters' in args.resource:

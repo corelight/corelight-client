@@ -2,6 +2,9 @@
 #
 # See COPYING for license information.
 
+import io
+import json
+import sys
 import unittest
 from unittest import mock
 
@@ -64,6 +67,20 @@ class TestConfirmationGate(unittest.TestCase):
         mock_process.assert_called_once()
         self.assertEqual(mock_process.call_args[0][2], "https://x/confirm")
 
+    @mock.patch("client.resource.process")
+    def test_noblock_without_automation_still_reissues(self, mock_process):
+        # Additive guarantee: plain --noblock WITHOUT automation must keep
+        # today's auto-confirm behavior (fall through to reissue), with no
+        # fail() / SystemExit.
+        args = _Args(automation=False, assume_yes=False, noblock=True)
+        session = _Session(args)
+        resource_meta = {"response-fields": [], "responses": []}
+        data = {"message": "delete everything?", "confirmation-url": "https://x/confirm"}
+        resource._processResponse(session, resource_meta, _response(200),
+                                  "confirmation", "no-cache", data)
+        mock_process.assert_called_once()
+        self.assertEqual(mock_process.call_args[0][2], "https://x/confirm")
+
 
 class _RetryStub:
     def __init__(self, attempts):
@@ -86,10 +103,6 @@ class TestFailureAttempts(unittest.TestCase):
         util.setErrorFormat("text")
 
     def test_failure_reports_real_attempts_in_json_envelope(self):
-        import io
-        import json
-        import sys
-
         args = _Args(automation=False, assume_yes=False, noblock=False)
         session = _SessionWithRetry(args, attempts=3)
         resource_meta = {"response-fields": [], "responses": []}

@@ -102,7 +102,7 @@ class TestFailureAttempts(unittest.TestCase):
         util.enableExitCodes(False)
         util.setErrorFormat("text")
 
-    def test_failure_reports_real_attempts_in_json_envelope(self):
+    def _run(self, status):
         args = _Args(automation=False, assume_yes=False, noblock=False)
         session = _SessionWithRetry(args, attempts=3)
         resource_meta = {"response-fields": [], "responses": []}
@@ -113,13 +113,27 @@ class TestFailureAttempts(unittest.TestCase):
         sys.stderr = err
         try:
             with self.assertRaises(SystemExit):
-                resource._processResponse(session, resource_meta, _response(503),
+                resource._processResponse(session, resource_meta, _response(status),
                                           "object", "no-cache", data)
         finally:
             sys.stderr = old_stderr
 
-        payload = json.loads(err.getvalue())
-        self.assertEqual(payload["error"]["attempts"], 3)
+        return json.loads(err.getvalue())["error"]
+
+    def test_failure_reports_real_attempts_in_json_envelope(self):
+        self.assertEqual(self._run(503)["attempts"], 3)
+
+    def test_transient_status_marked_retriable(self):
+        # A transient HTTP status (503) must report retriable=true, regardless
+        # of method -- the caller decides whether a retry is safe for its op.
+        for status in (429, 502, 503, 504):
+            self.assertTrue(self._run(status)["retriable"],
+                            "status {} should be retriable".format(status))
+
+    def test_permanent_status_not_retriable(self):
+        for status in (400, 401, 404, 500):
+            self.assertFalse(self._run(status)["retriable"],
+                             "status {} should not be retriable".format(status))
 
 
 if __name__ == "__main__":

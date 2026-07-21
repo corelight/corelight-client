@@ -31,14 +31,38 @@ _Version = 1
 
 requests.packages.urllib3.disable_warnings()
 
+def statusIsRetriable(status):
+    """
+    Whether an HTTP status denotes a transient failure worth retrying.
+
+    This is the single source of truth for the ``retriable`` hint in error
+    output. It describes the failure itself; whether a retry is *safe* for a
+    given request (idempotency) is a separate decision made by RetryPolicy.
+    """
+    return status in RetryPolicy.RETRIABLE_STATUSES
+
 class SessionError(Exception):
-    def __init__(self, msg, arg=None, status_code=None, category=None, attempts=1):
+    def __init__(self, msg, arg=None, status_code=None, category=None, attempts=1,
+                 retriable=None):
         super(SessionError, self).__init__(msg + (" ({})".format(arg) if arg else ""))
         self._msg = msg
         self._arg = arg
         self.status_code = status_code
         self.category = category if category is not None else client.exitcodes.GENERIC
         self.attempts = attempts
+        # Whether the failure is transient. None means "derive it" (from the
+        # status, else the category); an explicit bool overrides that -- used
+        # for failures like SSL errors that share the connect category but are
+        # not actually transient.
+        self._retriable = retriable
+
+    def isRetriable(self):
+        """Whether this failure is transient (worth the caller retrying)."""
+        if self._retriable is not None:
+            return self._retriable
+        if self.status_code is not None:
+            return statusIsRetriable(self.status_code)
+        return self.category == client.exitcodes.CONNECT
 
     def fatalError(self):
         """Triggers a fatal error reporting the exception's information."""
@@ -47,10 +71,9 @@ class SessionError(Exception):
         else:
             line = "Fatal error: {}".format(self._msg)
 
-        retriable = self.category in (client.exitcodes.CONNECT, client.exitcodes.SERVER)
         client.util.fail(self.category, title=self._msg,
                          description=(str(self._arg) if self._arg else None),
-                         http_status=self.status_code, retriable=retriable,
+                         http_status=self.status_code, retriable=self.isRetriable(),
                          attempts=self.attempts, legacy_lines=[line])
 
 class RetryPolicy:
@@ -77,6 +100,12 @@ class RetryPolicy:
         return method.upper() in RetryPolicy.IDEMPOTENT_METHODS
 
     def _should_retry_exception(self, method, exc):
+        # An SSL/TLS failure (bad cert, hostname mismatch, protocol version) is
+        # a configuration error, not a transient one -- retrying just wastes the
+        # budget and delays a deterministic failure. SSLError subclasses
+        # ConnectionError, so it must be ruled out before that branch.
+        if isinstance(exc, requests.exceptions.SSLError):
+            return False
         # ConnectTimeout means the TCP handshake never completed, so the request
         # body was never sent -> safe to retry for any method. (It subclasses
         # both ConnectionError and Timeout, so it must be checked first.)
@@ -473,6 +502,21 @@ class Session:
 
         return (response, schema, cache, data)
 
+    def _send(self, prepared):
+        """
+        Sends a prepared request through the timeout- and retry-aware path.
+
+        All request sends go through here so the automation timeout/retry
+        behavior applies uniformly -- including the sensor-side 2FA re-auth,
+        which would otherwise send unbounded.
+        """
+        def _attempt():
+            if self._timeout is not None:
+                return Session._RequestsSession.send(prepared, timeout=self._timeout)
+            return Session._RequestsSession.send(prepared)
+
+        return self._retry.execute(prepared.method, _attempt)
+
     def _retrieveURL(self, url, **kwargs):
         """
         Retrieves a given URL through a ``GET`` or ``HEAD`` request.
@@ -547,12 +591,7 @@ class Session:
                     client.util.debug("| " + line, level=debug_level)
 
         try:
-            def _attempt():
-                if self._timeout is not None:
-                    return Session._RequestsSession.send(prepared, timeout=self._timeout)
-                return Session._RequestsSession.send(prepared)
-
-            response = self._retry.execute(prepared.method, _attempt)
+            response = self._send(prepared)
 
             info = response.headers.get("X-INFO-MESSAGE", None)
             if info:
@@ -593,8 +632,8 @@ class Session:
                      req = requests.Request(url=url, headers=self._requestHeaders(), **kwargs)
 
                  prepared = Session._RequestsSession.prepare_request(req)
-                 response = Session._RequestsSession.send(prepared)
-                 # Get the bearer token which will be valid for the entire session 
+                 response = self._send(prepared)
+                 # Get the bearer token which will be valid for the entire session
                  info2faheader = response.headers.get("Authorization", None)
                  if info2faheader and info2faheader.startswith("Bearer "):
                      start = 'Bearer '
@@ -612,7 +651,8 @@ class Session:
         except requests.exceptions.SSLError as e:
             u = urllib.parse.urlparse(url)
             raise SessionError("cannot connect to Corelight device at {}. {}".format(u.netloc, e),
-                               category=client.exitcodes.CONNECT, attempts=self._retry.attempts)
+                               category=client.exitcodes.CONNECT, attempts=self._retry.attempts,
+                               retriable=False)
 
         except requests.exceptions.Timeout as e:
             u = urllib.parse.urlparse(url)

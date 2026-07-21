@@ -11,6 +11,7 @@ import sys
 import time
 
 import client.exitcodes
+import client.session
 import client.util
 
 # The format for the readable ASCII representation of times the API returns.
@@ -323,6 +324,7 @@ def _processResponse(session, resource, response, schema, cache, data):
                          description=(description or None),
                          diagnostics=(diagnostics or None),
                          http_status=status,
+                         retriable=client.session.statusIsRetriable(status),
                          attempts=attempts,
                          legacy_lines=legacy_lines)
 

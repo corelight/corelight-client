@@ -3,9 +3,9 @@
 # See COPYING for license information.
 import argparse
 import re
-import sys
 import textwrap
 
+import client.exitcodes
 import client.util
 
 def printHelp(self, parser, namespace, values=None, option_string=None): # pylint: disable=unused-argument
@@ -253,8 +253,9 @@ class ComponentArgumentParser(argparse.ArgumentParser):
         return epilog
 
     def error(self, message):
-        print("{} error: {}".format(client.NAME, message), file=sys.stderr)
-        self.exit(1)
+        client.util.fail(client.exitcodes.USAGE,
+                         title="usage error", description=message,
+                         legacy_lines=["{} error: {}".format(client.NAME, message)])
 
 class CommandArgumentParser(argparse.ArgumentParser):
     """
@@ -403,8 +404,40 @@ class CommandArgumentParser(argparse.ArgumentParser):
         return epilog
 
     def error(self, message):
-        print("{} error: {}".format(client.NAME, message), file=sys.stderr)
-        self.exit(1)
+        client.util.fail(client.exitcodes.USAGE,
+                         title="usage error", description=message,
+                         legacy_lines=["{} error: {}".format(client.NAME, message)])
+
+def applyAutomationDefaults(args):
+    """
+    Normalizes automation-related options in place.
+
+    When ``args.automation`` is set, fills any unset knob with its automation
+    default and forces non-interactive mode. Leaves explicitly-set values
+    untouched. Always coerces final types so downstream code sees concrete
+    values.
+    """
+    if getattr(args, "automation", False):
+        if getattr(args, "timeout", None) is None:
+            args.timeout = "10,300"
+        if getattr(args, "retries", None) is None:
+            args.retries = 3
+        if getattr(args, "retry_max_time", None) is None:
+            args.retry_max_time = 120.0
+        if getattr(args, "error_format", None) is None:
+            args.error_format = "json"
+        args.noblock = True
+
+    if getattr(args, "retries", None) is None:
+        args.retries = 0
+    else:
+        args.retries = int(args.retries)
+
+    if getattr(args, "retry_max_time", None) is not None:
+        args.retry_max_time = float(args.retry_max_time)
+
+    if getattr(args, "error_format", None) is None:
+        args.error_format = "text"
 
 def createParser(config):
     """
@@ -434,6 +467,14 @@ def createParser(config):
     ssl_ca_cert = config.get("ssl-ca-cert", None)
     ssl_no_verify_hostname = config.get("ssl-no-verify-hostname", bool(socket))
     ssl_no_verify_certificate = config.get("ssl-no-verify-certificate", bool(socket))
+
+    automation = config.get("automation", False)
+    if automation in _false_equivalent_strings:
+        automation = False
+    timeout = config.get("timeout", None)
+    retries = config.get("retries", None)
+    retry_max_time = config.get("retry-max-time", None)
+    error_format = config.get("error-format", None)
 
     parser = ComponentArgumentParser()
     parser.add_argument("--noblock", action="store_true", dest="noblock", default=noblock,
@@ -472,6 +513,18 @@ def createParser(config):
                         help="Location where to store meta cache.")
     parser.add_argument("--ignore-meta", action="store_true", dest="ignore_meta", default=False,
                         help="Do not send metadata info to sensor API call, unless it's specified on CLI.")
+    parser.add_argument("--automation", action="store_true", dest="automation", default=bool(automation),
+                        help="Enable automation-friendly behavior: timeouts, retries, structured JSON errors, exit-code taxonomy, and strict non-interactive mode.")
+    parser.add_argument("--timeout", action="store", dest="timeout", default=timeout,
+                        help="Request timeout in seconds as 'N' or 'connect,read'. Default in --automation: 10,300.")
+    parser.add_argument("--retries", action="store", dest="retries", type=int, default=retries,
+                        help="Number of transient-failure retries. Default in --automation: 3.")
+    parser.add_argument("--retry-max-time", action="store", dest="retry_max_time", type=float, default=retry_max_time,
+                        help="Maximum total seconds to spend on retries. Default in --automation: 120.")
+    parser.add_argument("--error-format", action="store", dest="error_format", choices=["text", "json"], default=error_format,
+                        help="Error/output format. Default in --automation: json.")
+    parser.add_argument("--assume-yes", "--confirm", action="store_true", dest="assume_yes", default=False,
+                        help="Proceed through confirmation-gated operations without prompting (required for destructive ops in --automation).")
 
     # Legacy BroBox support. To be removed.
     parser.add_argument("--brobox", action="store", dest="brobox", default=None,

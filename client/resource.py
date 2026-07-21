@@ -10,6 +10,7 @@ import os.path
 import sys
 import time
 
+import client.exitcodes
 import client.util
 
 # The format for the readable ASCII representation of times the API returns.
@@ -304,15 +305,24 @@ def _processResponse(session, resource, response, schema, cache, data):
         if not error.endswith("."):
             error += "."
 
-        print(error, file=sys.stderr)
-
+        legacy_lines = [error]
         if diagnostics:
-            print("\nDiagnostics:", file=sys.stderr)
+            legacy_lines.append("")
+            legacy_lines.append("Diagnostics:")
             for line in diagnostics.strip().split("\n"):
-                print("  " + line, file=sys.stderr)
-            print("", file=sys.stderr)
+                legacy_lines.append("  " + line)
+            legacy_lines.append("")
 
-        sys.exit(1)
+        retry = getattr(session, "_retry", None)
+        attempts = retry.attempts if retry is not None else 1
+
+        client.util.fail(client.exitcodes.classify_status(status),
+                         title=(title or None),
+                         description=(description or None),
+                         diagnostics=(diagnostics or None),
+                         http_status=status,
+                         attempts=attempts,
+                         legacy_lines=legacy_lines)
 
     ### Success, handle result.
 
@@ -332,6 +342,9 @@ def _processResponse(session, resource, response, schema, cache, data):
         msg = data["message"]
         url = data["confirmation-url"]
 
+        automation = getattr(session.arguments(), "automation", False)
+        assume_yes = getattr(session.arguments(), "assume_yes", False)
+
         if not noblock:
             print()
             print("== Confirmation required ==")
@@ -348,6 +361,15 @@ def _processResponse(session, resource, response, schema, cache, data):
             print("== Confirmed, proceeding")
             print()
 
+        elif automation and not assume_yes:
+            # Strict automation: never silently auto-confirm a destructive op.
+            client.util.fail(client.exitcodes.CONFIRMATION,
+                             title="Confirmation required",
+                             description=("{} Pass --assume-yes to proceed "
+                                          "non-interactively.".format(msg)),
+                             legacy_lines=["Error: confirmation required; "
+                                           "pass --assume-yes to proceed. ({})".format(msg)])
+
         # Reissue the request with the URL we got.
         return process(session, resource, url)
 
@@ -356,15 +378,10 @@ def _processResponse(session, resource, response, schema, cache, data):
     else:
         hide = set()
 
-    try:
-        if session.arguments().json:
-            json.dump(data, fp=sys.stdout, indent=2, sort_keys=True)
-            print()
-            return
-
-    except AttributeError:
-        # No JSON option.
-        pass
+    if getattr(session.arguments(), "json", False) or client.util.errorFormat() == "json":
+        json.dump(data, fp=sys.stdout, indent=2, sort_keys=True)
+        print()
+        return
 
     if schema == "collection":
         if not isinstance(data, list):

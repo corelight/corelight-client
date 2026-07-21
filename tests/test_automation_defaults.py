@@ -2,9 +2,14 @@
 #
 # See COPYING for license information.
 
+import io
+import sys
 import unittest
 
+import client
 from client import argparser
+from client import exitcodes
+from client import util
 
 
 class _NS:
@@ -40,6 +45,61 @@ class TestApplyAutomationDefaults(unittest.TestCase):
         self.assertEqual(ns.retries, 0)
         self.assertEqual(ns.error_format, "text")
         self.assertFalse(ns.noblock)
+
+
+class TestParserErrorRoutesThroughFail(unittest.TestCase):
+    """
+    Regression coverage for ComponentArgumentParser.error() and
+    CommandArgumentParser.error(): both now funnel through
+    client.util.fail(exitcodes.USAGE, ...) instead of calling self.exit()
+    directly, so fail() is solely responsible for terminating the process.
+    """
+
+    def setUp(self):
+        util.enableExitCodes(False)
+        util.setErrorFormat("text")
+
+    def tearDown(self):
+        util.enableExitCodes(False)
+        util.setErrorFormat("text")
+
+    def _assertLegacyError(self, parser):
+        err = io.StringIO()
+        old_stderr = sys.stderr
+        sys.stderr = err
+        try:
+            with self.assertRaises(SystemExit) as cm:
+                parser.error("boom")
+        finally:
+            sys.stderr = old_stderr
+
+        self.assertEqual(cm.exception.code, 1)
+        self.assertEqual(err.getvalue(), "{} error: boom\n".format(client.NAME))
+
+    def test_component_parser_error_legacy_mode(self):
+        self._assertLegacyError(argparser.ComponentArgumentParser())
+
+    def test_command_parser_error_legacy_mode(self):
+        self._assertLegacyError(argparser.CommandArgumentParser())
+
+    def _assertTaxonomyError(self, parser):
+        util.enableExitCodes(True)
+        err = io.StringIO()
+        old_stderr = sys.stderr
+        sys.stderr = err
+        try:
+            with self.assertRaises(SystemExit) as cm:
+                parser.error("boom")
+        finally:
+            sys.stderr = old_stderr
+
+        self.assertEqual(cm.exception.code, exitcodes.USAGE)
+
+    def test_component_parser_error_taxonomy_mode(self):
+        self._assertTaxonomyError(argparser.ComponentArgumentParser())
+
+    def test_command_parser_error_taxonomy_mode(self):
+        self._assertTaxonomyError(argparser.CommandArgumentParser())
 
 
 if __name__ == "__main__":

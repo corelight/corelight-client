@@ -46,6 +46,33 @@ class TestApplyAutomationDefaults(unittest.TestCase):
         self.assertEqual(ns.error_format, "text")
         self.assertFalse(ns.noblock)
 
+    def test_reparse_contract_requires_reapplying_defaults(self):
+        """
+        Regression test for the entry-point reparse bug: bin/corelight-client
+        reparses argv into a brand-new namespace after loading meta
+        (`args = parser.parse_args(argv_pass2)`), and that fresh namespace is
+        what session.arguments() returns thereafter. createParser() alone
+        does NOT derive --noblock from --automation -- only
+        applyAutomationDefaults() does. So the raw parsed namespace must show
+        noblock=False even with --automation, and only turns True once
+        applyAutomationDefaults() is rerun on it. If the entry point ever
+        stops reapplying defaults after the reparse, this test's first
+        assertion still passes (proving the parser itself is innocent) while
+        anyone manually replicating the entry point's post-reparse behavior
+        without the second call would keep noblock False -- which is exactly
+        the bug this pins.
+        """
+        parser = argparser.createParser({})
+        args, _ = parser.parse_known_args(["--automation", "--device", "x"])
+
+        # The parser alone must NOT set noblock from automation.
+        self.assertTrue(args.automation)
+        self.assertFalse(args.noblock)
+
+        # Only normalization enforces "automation implies noblock".
+        argparser.applyAutomationDefaults(args)
+        self.assertTrue(args.noblock)
+
 
 class TestParserErrorRoutesThroughFail(unittest.TestCase):
     """

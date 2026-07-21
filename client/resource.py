@@ -347,7 +347,18 @@ def _processResponse(session, resource, response, schema, cache, data):
         automation = getattr(session.arguments(), "automation", False)
         assume_yes = getattr(session.arguments(), "assume_yes", False)
 
-        if not noblock:
+        if automation and not assume_yes:
+            # Strict automation: never silently auto-confirm a destructive op.
+            # Checked first, and does not depend on noblock, so this gate
+            # still fires even if noblock propagation ever regresses again.
+            client.util.fail(client.exitcodes.CONFIRMATION,
+                             title="Confirmation required",
+                             description=("{} Pass --assume-yes to proceed "
+                                          "non-interactively.".format(msg)),
+                             legacy_lines=["Error: confirmation required; "
+                                           "pass --assume-yes to proceed. ({})".format(msg)])
+
+        elif not noblock:
             print()
             print("== Confirmation required ==")
             print()
@@ -362,15 +373,6 @@ def _processResponse(session, resource, response, schema, cache, data):
 
             print("== Confirmed, proceeding")
             print()
-
-        elif automation and not assume_yes:
-            # Strict automation: never silently auto-confirm a destructive op.
-            client.util.fail(client.exitcodes.CONFIRMATION,
-                             title="Confirmation required",
-                             description=("{} Pass --assume-yes to proceed "
-                                          "non-interactively.".format(msg)),
-                             legacy_lines=["Error: confirmation required; "
-                                           "pass --assume-yes to proceed. ({})".format(msg)])
 
         # Reissue the request with the URL we got.
         return process(session, resource, url)

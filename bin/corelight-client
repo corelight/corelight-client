@@ -383,6 +383,16 @@ client.argparser.populateParser(parser, meta, limit_components_to=remaining)
 args = parser.parse_args(argv_pass2)
 args.auth_base_url = fleet_auth_base_url
 
+# The reparse above builds a brand-new namespace, so any automation
+# normalization applied to the first-pass namespace (e.g. "automation
+# implies noblock") is lost unless we reapply it here. session.arguments()
+# below returns this namespace, so anything read from it post-reparse
+# (including client/resource.py's confirmation gate) needs this rerun.
+client.argparser.applyAutomationDefaults(args)
+client.util.setErrorFormat(args.error_format)
+if args.automation:
+    client.util.enableExitCodes(True)
+
 # Check if we should exclude the meta parameters
 if args.ignore_meta and 'parameters' in args.resource:
     # loop through args and exclude any that are not required, or not specified on CLI

@@ -13,6 +13,7 @@ import urllib.parse
 
 import client.argparser
 import client.configuration
+import client.exitcodes
 import client.meta
 import client.resource
 import client.session
@@ -63,6 +64,17 @@ config = {
     "device": corelight_device
 }
 
+# Automation-related environment variables (rc file overrides these, matching
+# the precedence used for CORELIGHT_DEVICE).
+if os.environ.get("CORELIGHT_AUTOMATION", None):
+    config["automation"] = os.environ["CORELIGHT_AUTOMATION"]
+
+if os.environ.get("CORELIGHT_TIMEOUT", None):
+    config["timeout"] = os.environ["CORELIGHT_TIMEOUT"]
+
+if os.environ.get("CORELIGHT_RETRIES", None):
+    config["retries"] = os.environ["CORELIGHT_RETRIES"]
+
 # Legacy BroBox support. To be removed.
 if os.path.exists(ConfigFileLegacy):
     print("""Note: Please rename {} to {}.
@@ -92,12 +104,25 @@ if args.version:
 if (not args.device and not args.fleet) or (args.device and args.fleet):
     if "-h" in sys.argv or "--help" in sys.argv or "help" in sys.argv:
         parser.print_help()
+        sys.exit(1)
     else:
-        print("You need to specify the address of either your Corelight Sensor or your Corelight Fleet Manager.")
-
-    sys.exit(1)
+        client.argparser.applyAutomationDefaults(args)
+        client.util.setErrorFormat(args.error_format)
+        if args.automation:
+            client.util.enableExitCodes(True)
+        client.util.fail(client.exitcodes.USAGE,
+                         title="no device specified",
+                         description="You need to specify the address of either your Corelight Sensor or your Corelight Fleet Manager.",
+                         legacy_lines=["You need to specify the address of either your Corelight Sensor or your Corelight Fleet Manager."])
 
 client.util.enableDebug(args.debug_level)
+
+# Normalize automation options and enable output/exit-code behavior early so
+# that all subsequent error paths honor them.
+client.argparser.applyAutomationDefaults(args)
+client.util.setErrorFormat(args.error_format)
+if args.automation:
+    client.util.enableExitCodes(True)
 
 fleet_auth_base_url = None
 
@@ -114,8 +139,10 @@ if args.fleet:
 
     if args.uid:
         if not re.search("^[0-9a-zA-Z-_]+$", args.uid):
-            print("The sensor uid '{}' is invalid".format(args.uid))
-            sys.exit(1)
+            client.util.fail(client.exitcodes.USAGE,
+                             title="invalid sensor uid",
+                             description="The sensor uid '{}' is invalid".format(args.uid),
+                             legacy_lines=["The sensor uid '{}' is invalid".format(args.uid)])
 
         url = client.util.appendUrl(url, "/sensor/instance/{}/api".format(args.uid))
 else:
@@ -378,7 +405,9 @@ except AttributeError:
 try:
     resource = args.resource
 except AttributeError:
-    print("No command given. Use --help to see list.")
-    sys.exit(1)
+    client.util.fail(client.exitcodes.USAGE,
+                     title="no command given",
+                     description="No command given. Use --help to see list.",
+                     legacy_lines=["No command given. Use --help to see list."])
 
 client.resource.process(session, resource)

@@ -211,8 +211,10 @@ def process(session, resource, force_url=None):
                 d = json.load(fp=sys.stdin)
                 values.update({ k.replace("-", "_"): v for (k, v) in d.items() })
             except ValueError:
-                print("Cannot parse JSON on standard input.", file=sys.stderr)
-                sys.exit(1)
+                client.util.fail(client.exitcodes.USAGE,
+                                 title="invalid stdin",
+                                 description="Cannot parse JSON on standard input.",
+                                 legacy_lines=["Cannot parse JSON on standard input."])
 
     except AttributeError:
         # No --stdin option.

@@ -64,16 +64,10 @@ config = {
     "device": corelight_device
 }
 
-# Automation-related environment variables (rc file overrides these, matching
-# the precedence used for CORELIGHT_DEVICE).
+# CORELIGHT_AUTOMATION enables automation mode; the rc file overrides it,
+# matching the precedence used for CORELIGHT_DEVICE.
 if os.environ.get("CORELIGHT_AUTOMATION", None):
     config["automation"] = os.environ["CORELIGHT_AUTOMATION"]
-
-if os.environ.get("CORELIGHT_TIMEOUT", None):
-    config["timeout"] = os.environ["CORELIGHT_TIMEOUT"]
-
-if os.environ.get("CORELIGHT_RETRIES", None):
-    config["retries"] = os.environ["CORELIGHT_RETRIES"]
 
 # Legacy BroBox support. To be removed.
 if os.path.exists(ConfigFileLegacy):

@@ -177,14 +177,12 @@ requests:
 ``--timeout``
     Sets the request timeout in seconds, either as a single number ``N``
     (applied to both connect and read) or as ``connect,read``. Defaults to
-    ``10,3600`` when ``--automation`` is enabled. Can also be set through the
-    environment variable ``CORELIGHT_TIMEOUT``.
+    ``10,3600`` when ``--automation`` is enabled.
 
 ``--retries``
     Sets the number of retries to attempt for transient failures (connection
     errors, and HTTP 429/502/503/504 for idempotent requests). Defaults to
-    ``3`` when ``--automation`` is enabled, ``0`` otherwise. Can also be set
-    through the environment variable ``CORELIGHT_RETRIES``.
+    ``3`` when ``--automation`` is enabled, ``0`` otherwise.
 
 ``--retry-max-time``
     Sets the maximum total number of seconds to spend on retries. Defaults to

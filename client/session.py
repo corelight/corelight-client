@@ -302,7 +302,13 @@ class _UnixSocketAdapter(requests.adapters.HTTPAdapter):
         super(_UnixSocketAdapter, self).__init__()
         self._unix_connection_pool = _UnixSocketConnectionPool(args, host_address)
 
+    # requests <2.32 routes sends through get_connection(); 2.32+ renamed the
+    # hook to get_connection_with_tls_context() and no longer calls the old one.
+    # We override both so the unix-socket pool is used across urllib3 1.x/2.x.
     def get_connection(self, url, proxies=None):
+        return self._unix_connection_pool
+
+    def get_connection_with_tls_context(self, request, verify, proxies=None, cert=None):
         return self._unix_connection_pool
 
 class Session:

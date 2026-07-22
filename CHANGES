@@ -4,6 +4,10 @@
     failure retries with backoff, a curated exit-code taxonomy, structured JSON
     errors, and strict non-interactive confirmation (--assume-yes).
 
+  * Fix the unix-socket transport (--socket) under requests >= 2.32 (urllib3
+    2.x): override the reworked HTTPAdapter connection hook so sends still route
+    through the socket.
+
 1.5.21 | 2026-06-25 17:00:00 +0000
 
   * fix(ssl): also reset conn.cert_reqs when disabling verification

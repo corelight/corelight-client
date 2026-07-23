@@ -2,7 +2,7 @@
 .. _corelight-client:
 
 .. Version number is filled in automatically.
-.. |version| replace:: 1.5.21
+.. |version| replace:: 1.5.22
 
 ====================================
 Corelight Sensor Command Line Client
@@ -167,6 +167,86 @@ requests:
 ``--ignore-meta``
     Do not send metadata info to sensor API call, unless it's specified on CLI.
 
+``--automation``
+    Enables a bundle of automation-friendly behavior: request timeouts,
+    transient-failure retries, structured JSON errors, the curated
+    exit-code taxonomy, and strict non-interactive confirmation. See
+    `Automation`_ below for details. Can also be enabled by setting the
+    environment variable ``CORELIGHT_AUTOMATION=1``.
+
+``--timeout``
+    Sets the request timeout in seconds, either as a single number ``N``
+    (applied to both connect and read) or as ``connect,read``. Defaults to
+    ``10,3600`` when ``--automation`` is enabled.
+
+``--retries``
+    Sets the number of retries to attempt for transient failures (connection
+    errors, and HTTP 429/502/503/504 for idempotent requests). Defaults to
+    ``3`` when ``--automation`` is enabled, ``0`` otherwise.
+
+``--retry-max-time``
+    Sets the maximum total number of seconds to spend on retries. Defaults to
+    ``120`` when ``--automation`` is enabled.
+
+``--error-format``
+    Sets the output/error format to ``text`` or ``json``. Defaults to
+    ``json`` when ``--automation`` is enabled, ``text`` otherwise.
+
+``--assume-yes``
+    Proceeds through confirmation-gated operations without prompting
+    (alias: ``--confirm``). Required to perform destructive operations
+    while ``--automation`` is enabled; otherwise those operations fail
+    with a confirmation-required error.
+
+Automation
+----------
+
+Passing ``--automation`` (or setting ``CORELIGHT_AUTOMATION=1``) enables a
+bundle of automation-friendly behaviors and turns on the exit-code taxonomy
+below. It implies ``--noblock`` and defaults to a 10s connect / 3600s read
+timeout, 3 retries (capped at 120s total), and JSON output for both success
+and error. Each piece can be overridden with its own flag.
+
+Without ``--automation`` there is no request timeout at all (the client blocks
+indefinitely), so enabling it never shortens a timeout that existed before. The
+default read timeout is deliberately long: it is meant only to bound a wedged
+connection, not to cap normal work. Some operations, such as large uploads, can
+legitimately take many minutes, and the read timeout applies per network read
+rather than to the whole transfer, so a steady upload keeps resetting it. Lower
+``--timeout`` if you want automation to give up faster, or raise it for an
+unusually large transfer over a slow link.
+
+Retries are idempotency-aware: ``GET``/``HEAD``/``OPTIONS`` requests retry on
+connection failures and on HTTP 429/502/503/504. Unsafe methods
+(``POST``/``PUT``/``DELETE``) retry only when the connection timed out before it
+ever reached the server, so a mutation is never sent twice. For any other
+transient failure on an unsafe method the client does not retry; it exits with
+the matching code (and sets ``retriable`` in the JSON error envelope) so the
+caller, which alone knows whether its operation is safe to repeat, can decide.
+
+``--retry-max-time`` is a total wall-clock budget for the retry loop, measured
+from the first attempt and including the time spent in the requests themselves.
+It is checked before each new attempt: once the elapsed time plus the next
+backoff would exceed it, no further attempt is started. It never interrupts a
+request already in flight -- a single request's duration is bounded by the read
+timeout above, not by this value.
+
+Exit codes (only when automation is enabled):
+
+===== ====================================================
+Code  Meaning
+===== ====================================================
+0     Success
+1     Generic / unexpected error
+2     Usage / bad arguments
+3     Connect failure or timeout (after retries)
+4     Authentication / authorization (401/403)
+5     Resource not found (404)
+6     Server error (5xx)
+7     Confirmation required (declined or blocked)
+8     API version unsupported
+===== ====================================================
+
 .. _corelight-client-config:
 
 Configuration File
@@ -209,3 +289,19 @@ with ``#`` are ignored. ``corelight-client`` support the following keys:
 
 ``socket``
     A unix domain socket to use for sending requests.
+
+``automation``
+    If set to a true value, enables automation-friendly behavior. See
+    `Automation`_.
+
+``timeout``
+    The request timeout in seconds, either as ``N`` or ``connect,read``.
+
+``retries``
+    The number of retries to attempt for transient failures.
+
+``retry-max-time``
+    The maximum total number of seconds to spend on retries.
+
+``error-format``
+    The output/error format, ``text`` or ``json``.

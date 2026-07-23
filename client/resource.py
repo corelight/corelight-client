@@ -10,6 +10,8 @@ import os.path
 import sys
 import time
 
+import client.exitcodes
+import client.session
 import client.util
 
 # The format for the readable ASCII representation of times the API returns.
@@ -210,8 +212,10 @@ def process(session, resource, force_url=None):
                 d = json.load(fp=sys.stdin)
                 values.update({ k.replace("-", "_"): v for (k, v) in d.items() })
             except ValueError:
-                print("Cannot parse JSON on standard input.", file=sys.stderr)
-                sys.exit(1)
+                client.util.fail(client.exitcodes.USAGE,
+                                 title="invalid stdin",
+                                 description="Cannot parse JSON on standard input.",
+                                 legacy_lines=["Cannot parse JSON on standard input."])
 
     except AttributeError:
         # No --stdin option.
@@ -304,15 +308,25 @@ def _processResponse(session, resource, response, schema, cache, data):
         if not error.endswith("."):
             error += "."
 
-        print(error, file=sys.stderr)
-
+        legacy_lines = [error]
         if diagnostics:
-            print("\nDiagnostics:", file=sys.stderr)
+            legacy_lines.append("")
+            legacy_lines.append("Diagnostics:")
             for line in diagnostics.strip().split("\n"):
-                print("  " + line, file=sys.stderr)
-            print("", file=sys.stderr)
+                legacy_lines.append("  " + line)
+            legacy_lines.append("")
 
-        sys.exit(1)
+        retry = getattr(session, "_retry", None)
+        attempts = retry.attempts if retry is not None else 1
+
+        client.util.fail(client.exitcodes.classify_status(status),
+                         title=(title or None),
+                         description=(description or None),
+                         diagnostics=(diagnostics or None),
+                         http_status=status,
+                         retriable=client.session.statusIsRetriable(status),
+                         attempts=attempts,
+                         legacy_lines=legacy_lines)
 
     ### Success, handle result.
 
@@ -332,7 +346,21 @@ def _processResponse(session, resource, response, schema, cache, data):
         msg = data["message"]
         url = data["confirmation-url"]
 
-        if not noblock:
+        automation = getattr(session.arguments(), "automation", False)
+        assume_yes = getattr(session.arguments(), "assume_yes", False)
+
+        if automation and not assume_yes:
+            # Strict automation: never silently auto-confirm a destructive op.
+            # Checked first, and does not depend on noblock, so this gate
+            # still fires even if noblock propagation ever regresses again.
+            client.util.fail(client.exitcodes.CONFIRMATION,
+                             title="Confirmation required",
+                             description=("{} Pass --assume-yes to proceed "
+                                          "non-interactively.".format(msg)),
+                             legacy_lines=["Error: confirmation required; "
+                                           "pass --assume-yes to proceed. ({})".format(msg)])
+
+        elif not noblock:
             print()
             print("== Confirmation required ==")
             print()
@@ -356,15 +384,10 @@ def _processResponse(session, resource, response, schema, cache, data):
     else:
         hide = set()
 
-    try:
-        if session.arguments().json:
-            json.dump(data, fp=sys.stdout, indent=2, sort_keys=True)
-            print()
-            return
-
-    except AttributeError:
-        # No JSON option.
-        pass
+    if getattr(session.arguments(), "json", False) or client.util.errorFormat() == "json":
+        json.dump(data, fp=sys.stdout, indent=2, sort_keys=True)
+        print()
+        return
 
     if schema == "collection":
         if not isinstance(data, list):

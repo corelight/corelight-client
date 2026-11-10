@@ -10,7 +10,7 @@ def readme():
         return f.read()
 
 setuptools.setup(name="corelight-client",
-    version="1.5.22",
+    version="1.5.23",
     description="Corelight API client",
     long_description=readme(),
     url="https://github.com/corelight/corelight-client",
@@ -30,7 +30,7 @@ setuptools.setup(name="corelight-client",
 
     package_data={
         "client": [
-            "certs/corelight.pem"
+            "certs/corelight-ca-access.pem"
             ],
         
         "": ["LICENSE-APACHE", "COPYING", "NOTICE"]

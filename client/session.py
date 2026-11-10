@@ -23,7 +23,7 @@ import client.util
 import client.exitcodes
 
 # The CA to validate default Corelight certificates with.
-_CorelightRoot = os.path.join(os.path.dirname(__file__), "certs/corelight.pem")
+_CorelightRoot = os.path.join(os.path.dirname(__file__), "certs/corelight-ca-access.pem")
 
 # Maximum API  version we support. If server sends a more recent one, this
 # client needs to be updated.
